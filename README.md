@@ -5,7 +5,7 @@ A simple classifieds marketplace for Afghanistan. Factories, shop owners and ind
 - Languages: Dari (default), Pashto, Uzbek (Arabic script)
 - Single-file site: `index.html` (no build step)
 - Backend: [Supabase](https://supabase.com) (Postgres + photo storage + anonymous sign-in)
-- Hosting: Cloudflare Workers static assets — domains: maamila.com, barzarcha.com
+- Hosting: Cloudflare Workers static assets — domain: maamila.com
 
 ## Setup
 1. Create a Supabase project and run `supabase/setup.sql` in the SQL editor.
