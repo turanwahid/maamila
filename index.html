@@ -146,6 +146,8 @@ header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0
 .bnav a.on{color:var(--blue)}
 .bnav a.plus .i{width:48px;height:48px;border-radius:16px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:28px;margin-top:-22px;box-shadow:0 6px 16px rgba(26,86,219,.4)}
 footer{padding:26px 0 30px;color:var(--ink2);font-size:13px}
+.g2f{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.drow{display:flex;align-items:center;gap:8px;margin:4px 0 6px;font-size:13.5px;font-weight:600}.drow select{flex:1;max-width:340px;height:40px;border-radius:12px;border:1px solid var(--line);background:#fff;padding:0 10px;font-size:14px}
 .note{background:#fff;border-radius:12px;padding:12px 14px;margin-top:10px}
 .terms h3{margin:18px 0 4px;font-size:16px}.terms p{margin:0 0 6px;color:var(--ink2);line-height:2}
 
@@ -200,7 +202,7 @@ seller_type:'فروشنده کیست؟',sale_type:'نوع فروش',photos:'عک
 phone:'شماره تماس',has_wa:'این شماره واتساپ دارد',name:'نام شما یا نام دوکان/فابریکه',publish:'نشر اعلان',save:'ذخیره',cancel:'لغو',edit:'ویرایش',del:'حذف',mark_sold:'فروخته شد',sold:'فروخته شده',relist:'دوباره فعال شود',
 confirm_del:'این اعلان حذف شود؟',published:'اعلان شما نشر شد',updated:'تغییرات ذخیره شد',deleted:'اعلان حذف شد',fill:'لطفاً خانه‌های سرخ را پر کنید',no_my_ads:'هنوز اعلانی ثبت نکرده‌اید',no_saved:'هنوز اعلانی را نشان نکرده‌اید',
 post_first:'اولین اعلان خود را ثبت کنید',safety:'🛡️ نکات امنیتی: قبل از دیدن جنس پول نفرستید و معامله را در جای عمومی انجام دهید.',sample:'نمونه',post_t:'اعلان جدید',edit_t:'ویرایش اعلان',
-saved_ok:'نشان شد',unsaved:'از نشان‌ها برداشته شد',copy:'کاپی',copied:'شماره کاپی شد',choose_city:'شهر را انتخاب کنید',posted:'ثبت شده',not_found:'این اعلان پیدا نشد',back_home:'بازگشت به خانه',
+saved_ok:'نشان شد',unsaved:'از نشان‌ها برداشته شد',copy:'کاپی',copied:'شماره کاپی شد',choose_city:'ولایت را انتخاب کنید',province:'ولایت',district:'ولسوالی / ناحیه',all_districts:'همه ولسوالی‌ها',posted:'ثبت شده',not_found:'این اعلان پیدا نشد',back_home:'بازگشت به خانه',
 perm_err:'اجازه ذخیره ندارید. از مالک صفحه دسترسی Contributor بخواهید.',save_err:'ذخیره نشد، دوباره کوشش کنید.',
 about:'«معامله» جایی است که فابریکه‌ها، دوکانداران و مردم افغانستان اجناس خود را رایگان اعلان می‌کنند و خریداران مستقیم با آن‌ها تماس می‌گیرند.',proto:'نسخه آزمایشی: اعلان‌های «نمونه» ساختگی هستند. اعلان‌هایی که شما ثبت می‌کنید واقعاً ذخیره می‌شوند.',
 now:'همین حالا',mins:n=>`${n} دقیقه پیش`,hours:n=>`${n} ساعت پیش`,days:n=>`${n} روز پیش`,max3:'حداکثر ۳ عکس',in_city:c=>`در ${c}`},
@@ -212,7 +214,7 @@ seller_type:'پلورونکی څوک دی؟',sale_type:'د پلور ډول',phot
 phone:'د تلیفون شمېره',has_wa:'دا شمېره واټس اپ لري',name:'ستاسو نوم یا د دوکان/فابریکې نوم',publish:'اعلان خپور کړئ',save:'خوندي کړئ',cancel:'لغوه',edit:'سمول',del:'ړنګول',mark_sold:'وپلورل شو',sold:'پلورل شوی',relist:'بیا فعال شي',
 confirm_del:'دا اعلان ړنګ شي؟',published:'ستاسو اعلان خپور شو',updated:'بدلونونه خوندي شول',deleted:'اعلان ړنګ شو',fill:'مهرباني وکړئ سره ځایونه ډک کړئ',no_my_ads:'تر اوسه مو کوم اعلان نه دی ورکړی',no_saved:'تر اوسه مو کوم اعلان نه دی خوندي کړی',
 post_first:'خپل لومړی اعلان ورکړئ',safety:'🛡️ خوندیتوب: تر څو مو توکی نه وي لیدلی پیسې مه لېږئ او معامله په عامه ځای کې وکړئ.',sample:'نمونه',post_t:'نوی اعلان',edit_t:'اعلان سمول',
-saved_ok:'خوندي شو',unsaved:'له خوندي شویو لرې شو',copy:'کاپي',copied:'شمېره کاپي شوه',choose_city:'ښار وټاکئ',posted:'ثبت شوی',not_found:'دا اعلان ونه موندل شو',back_home:'کور ته ستنېدل',
+saved_ok:'خوندي شو',unsaved:'له خوندي شویو لرې شو',copy:'کاپي',copied:'شمېره کاپي شوه',choose_city:'ولایت وټاکئ',province:'ولایت',district:'ولسوالي / ناحیه',all_districts:'ټولې ولسوالۍ',posted:'ثبت شوی',not_found:'دا اعلان ونه موندل شو',back_home:'کور ته ستنېدل',
 perm_err:'د خوندي کولو اجازه نه لرئ. له مالک څخه د Contributor لاسرسی وغواړئ.',save_err:'خوندي نه شو، بیا هڅه وکړئ.',
 about:'«معامله» هغه ځای دی چې د افغانستان فابریکې، دوکانداران او خلک خپل توکي وړیا اعلانوي او پېرودونکي ورسره مستقیم اړیکه نیسي.',proto:'ازمایښتي نسخه: «نمونه» اعلانونه جوړ شوي دي. هغه اعلانونه چې تاسو یې ورکوئ په رښتیا خوندي کېږي.',
 now:'همدا اوس',mins:n=>`${n} دقیقې مخکې`,hours:n=>`${n} ساعته مخکې`,days:n=>`${n} ورځې مخکې`,max3:'تر ټولو ډېر ۳ انځوره',in_city:c=>`په ${c} کې`},
@@ -224,7 +226,7 @@ seller_type:'ساتووچی کیم؟',sale_type:'ساتیش توری',photos:'ر
 phone:'تیلفون نومری',has_wa:'بو نومرده واتساپ بار',name:'ایسمینگیز یا دوکان/فابریکه نامی',publish:'اعلان‌نی چیقریش',save:'ساقلش',cancel:'بیکار قیلیش',edit:'اوزگرتیریش',del:'اوچیریش',mark_sold:'ساتیلدی',sold:'ساتیلگن',relist:'قیته فعال قیلیش',
 confirm_del:'بو اعلان اوچیریلسینمی؟',published:'اعلانینگیز چیقدی',updated:'اوزگریش‌لر ساقلندی',deleted:'اعلان اوچیریلدی',fill:'ایلتیماس، قیزیل جای‌لرنی تولدیرینگ',no_my_ads:'هلی اعلان برمه‌گنسیز',no_saved:'هلی هیچ اعلان ساقلمه‌گنسیز',
 post_first:'بیرینچی اعلانینگیزنی بیرینگ',safety:'🛡️ خوفسیزلیک: محصول‌نی کورمه‌گونچه پول یوبارمنگ و معامله‌نی عمومی جایده قیلینگ.',sample:'نمونه',post_t:'یانگی اعلان',edit_t:'اعلان‌نی اوزگرتیریش',
-saved_ok:'ساقلندی',unsaved:'ساقلنگن‌لردن اولیب تشلندی',copy:'کاپی',copied:'نومر کاپی قیلیندی',choose_city:'شهرنی تنلنگ',posted:'جایلنگن',not_found:'بو اعلان تاپیلمه‌دی',back_home:'باش صحیفه‌گه قیتیش',
+saved_ok:'ساقلندی',unsaved:'ساقلنگن‌لردن اولیب تشلندی',copy:'کاپی',copied:'نومر کاپی قیلیندی',choose_city:'ولایت‌نی تنلنگ',province:'ولایت',district:'ولسوالی / ناحیه',all_districts:'بارچه ولسوالی‌لر',posted:'جایلنگن',not_found:'بو اعلان تاپیلمه‌دی',back_home:'باش صحیفه‌گه قیتیش',
 perm_err:'ساقلشگه رخصتینگیز یوق. ایگه‌سیدن Contributor حقینی سورنگ.',save_err:'ساقلنمه‌دی، قیته اورینیب کورینگ.',
 about:'«معامله» — افغانستان‌دگی فابریکه‌لر، دوکاندارلر و آدم‌لر اوز محصول‌لرینی بیپول اعلان قیلیدیگن و خریدارلر اولر بیلن توغریدن-توغری بغلنه‌دیگن جای.',proto:'سینف نسخه‌سی: «نمونه» اعلان‌لر اویدیرمه. سیز برگن اعلان‌لر حقیقتاً ساقلنه‌دی.',
 now:'حاضر',mins:n=>`${n} دقیقه آلدین`,hours:n=>`${n} ساعت آلدین`,days:n=>`${n} کون آلدین`,max3:'انگ کوپی ۳ رسم',in_city:c=>`${c}ده`},
@@ -257,12 +259,50 @@ const CATS=[
  ['other','📦',M('سایر','نور','باشقه')],
 ].map(([id,i,n],k)=>({id,i,n,h:[220,200,25,330,40,355,15,110,250,45,280][k]}));
 const catById=id=>CATS.find(c=>c.id===id)||CATS[CATS.length-1];
-const CITIES=[
- ['kabul',M('کابل')],['herat',M('هرات')],['mazar',M('مزار شریف')],['kandahar',M('کندهار')],['jalalabad',M('جلال‌آباد','جلال اباد','جلال‌آباد')],
- ['kunduz',M('کندز')],['ghazni',M('غزنی','غزني','غزنی')],['pulikhumri',M('پل خمری','پلخمري','پل خمری')],['sheberghan',M('شبرغان')],['maimana',M('میمنه')],
- ['faizabad',M('فیض‌آباد','فیض اباد','فیض‌آباد')],['lashkargah',M('لشکرگاه','لشکرګاه','لشکرگاه')],['bamyan',M('بامیان')],['khost',M('خوست')],['taloqan',M('تالقان')],['andkhoy',M('اندخوی')],
+/* provinces (ولایات) and districts (ولسوالی‌ها) of Afghanistan — district names in Dari spelling */
+const KABUL_NAHIA=Array.from({length:22},(_,i)=>`شهر کابل، ناحیه ${(i+1).toLocaleString('fa-AF')}`);
+const PROVS=[
+ ['kabul',M('کابل','کابل','کابل'),[...KABUL_NAHIA,'بگرامی','ده‌سبز','فرزه','گلدره','استالف','کلکان','میربچه‌کوت','موسهی','پغمان','قره‌باغ','شکردره','سروبی','خاک جبار','چهارآسیاب']],
+ ['herat',M('هرات','هرات','هرات'),['شهر هرات','انجیل','گذره','کرخ','ادرسکن','چشت شریف','فارسی','غوریان','گلران','کشک (رباط سنگی)','کشک کهنه','کهسان','اوبه','پشتون زرغون','شیندند','زنده‌جان']],
+ ['balkh',M('بلخ','بلخ','بلخ'),['شهر مزار شریف','بلخ','چاربولک','چمتال','چهارکنت','دهدادی','دولت‌آباد','کلدار','خلم','کشنده','مارمل','نهرشاهی','شولگره','شورتپه','زاری','حیرتان']],
+ ['kandahar',M('کندهار','کندهار','قندهار'),['شهر کندهار','ارغنداب','ارغستان','دامان','غورک','خاکریز','معروف','میوند','میانشین','نیش','پنجوایی','ریگ','شاه ولی کوت','شوراوک','سپین بولدک','ژیری','تخته‌پل']],
+ ['nangarhar',M('ننگرهار','ننګرهار','ننگرهار'),['شهر جلال‌آباد','بهسود','اچین','بتی‌کوت','چپرهار','دره نور','ده‌بالا','دور بابا','گوشته','حصارک','کامه','خوگیانی','کوت','کوزکنر','لعل‌پور','مهمند دره','نازیان','پچیر و اگام','رودات','شیرزاد','شینوار','سرخرود']],
+ ['kunduz',M('کندز','کندز','قندوز'),['شهر کندز','علی‌آباد','چهاردره','دشت ارچی','امام صاحب','خان‌آباد','قلعه زال']],
+ ['ghazni',M('غزنی','غزني','غزنی'),['شهر غزنی','اندر','آب‌بند','اجرستان','جاغوری','جغتو','ده‌یک','گیلان','گیرو','خواجه عمری','مالستان','مقر','ناوه','ناور','قره‌باغ','رشیدان','واغظ','زنه‌خان','خوگیانی']],
+ ['helmand',M('هلمند','هلمند','هلمند'),['شهر لشکرگاه','باغران','دیشو','گرمسیر','کجکی','خانشین','موسی‌قلعه','نادعلی','نهر سراج','نوزاد','ناوه بارکزی','سنگین','واشیر','مارجه']],
+ ['faryab',M('فاریاب','فاریاب','فاریاب'),['شهر میمنه','اندخوی','المار','بلچراغ','دولت‌آباد','گرزیوان','خان چهارباغ','خواجه سبزپوش','کوهستان','پشتون کوت','قرغان','قرمقل','قیصار','شیرین تگاب']],
+ ['jowzjan',M('جوزجان','جوزجان','جوزجان'),['شهر شبرغان','آقچه','درزاب','فیض‌آباد','خانقاه','خمیاب','خواجه دوکوه','منگجیک','مردیان','قرقین','قوش‌تپه']],
+ ['takhar',M('تخار','تخار','تخار'),['شهر تالقان','بهارک','بنگی','چاه‌آب','چال','دشت قلعه','درقد','فرخار','هزارسموچ','اشکمش','خواجه بهاءالدین','خواجه غار','کلفگان','نمک‌آب','رستاق','ینگی قلعه','ورسج']],
+ ['badakhshan',M('بدخشان','بدخشان','بدخشان'),['شهر فیض‌آباد','ارگو','ارغنجخواه','بهارک','درایم','درواز','درواز بالا','اشکاشم','جرم','خاش','خواهان','کشم','کوهستان','کوف آب','کران و منجان','راغستان','شهر بزرگ','شغنان','شکی','شهدا','تگاب','تیشکان','وردوج','واخان','یاوان','یفتل','یمگان']],
+ ['baghlan',M('بغلان','بغلان','بغلان'),['شهر پل خمری','بغلان مرکزی','اندراب','برکه','دهنه غوری','دوشی','فرنگ و غارو','گذرگاه نور','خنجان','خوست و فرنگ','نهرین','پل حصار','تاله و برفک','ده صلاح','جلگه']],
+ ['samangan',M('سمنگان','سمنګان','سمنگان'),['شهر ایبک','دره صوف بالا','دره صوف پایین','فیروز نخچیر','حضرت سلطان','خرم و سارباغ','روی دوآب']],
+ ['sarepol',M('سرپل','سرپل','سرپل'),['شهر سرپل','بلخاب','گوسفندی','کوهستانات','صیاد','سوزمه قلعه','سنگ‌چارک']],
+ ['parwan',M('پروان','پروان','پروان'),['شهر چاریکار','بگرام','جبل‌السراج','سالنگ','سیدخیل','شیخ علی','سرخ پارسا','کوه صافی','غوربند','شینواری']],
+ ['kapisa',M('کاپیسا','کاپیسا','کاپیسا'),['محمودراقی','کوهستان اول','کوهستان دوم','نجراب','تگاب','الاسای','کوه‌بند']],
+ ['panjshir',M('پنجشیر','پنجشیر','پنجشیر'),['بازارک','رخه','شتل','عنابه','دره','پریان','خنج','آبشار']],
+ ['wardak',M('میدان وردک','میدان وردګ','میدان وردک'),['میدان شهر','جلریز','نرخ','چک','سیدآباد','جغتو','دایمیرداد','حصه اول بهسود','مرکز بهسود']],
+ ['logar',M('لوگر','لوګر','لوگر'),['پل علم','محمدآغه','برکی برک','چرخ','خروار','ازره','خوشی']],
+ ['paktia',M('پکتیا','پکتیا','پکتیا'),['شهر گردیز','احمدآباد','چمکنی','دند پتان','جانی‌خیل','لجه احمدخیل','لجه منگل','سید کرم','زرمت','جاجی (آریوب)','شواک','زازی']],
+ ['khost',M('خوست','خوست','خوست'),['شهر خوست','باک','گربز','جاجی میدان','موسی‌خیل','نادرشاه کوت','قلندر','صبری','شمل','سپیره','تنی','تیریزایی','مندوزی']],
+ ['paktika',M('پکتیکا','پکتیکا','پکتیکا'),['شرنه','برمل','دیله','گیان','گومل','جانی‌خیل','متاخان','نکه','عمنه','سروضه','سروبی','تروه','اورگون','وازه‌خوا','ورممی','یحیی‌خیل','یوسف‌خیل','زرغون‌شهر','زیروک']],
+ ['laghman',M('لغمان','لغمان','لغمان'),['شهر مهترلام','علینگار','علیشنگ','دولت‌شاه','قرغه‌یی','بادپخ']],
+ ['kunar',M('کنر','کونړ','کنر'),['شهر اسعدآباد','اسمار','چپه‌دره','دانگام','دره پیچ','غازی‌آباد','خاص کنر','مروره','نرنگ','نری','نورگل','شیگل','سوکی','وته‌پور']],
+ ['nuristan',M('نورستان','نورستان','نورستان'),['پارون','برگ متال','دوآب','کامدیش','مندول','نورگرام','واما','وایگل']],
+ ['badghis',M('بادغیس','بادغیس','بادغیس'),['شهر قلعه نو','آب کمری','غورماچ','جوند','مقر','مرغاب','قادس']],
+ ['ghor',M('غور','غور','غور'),['شهر فیروزکوه (چغچران)','چارسده','دولت‌یار','دولینه','لعل و سرجنگل','پسابند','ساغر','شهرک','تیوره','تولک']],
+ ['bamyan',M('بامیان','بامیان','بامیان'),['شهر بامیان','کهمرد','پنجاب','سیغان','شیبر','ورس','یکاولنگ']],
+ ['daykundi',M('دایکندی','دایکنډي','دایکندی'),['شهر نیلی','اشترلی','گیزاب','خدیر','کجران','کیتی','میرامور','سنگ تخت','شهرستان']],
+ ['uruzgan',M('ارزگان','اروزګان','ارزگان'),['شهر ترینکوت','چوره','دهراود','خاص ارزگان','شهید حساس','گیزاب']],
+ ['zabul',M('زابل','زابل','زابل'),['شهر قلات','ارغنداب','اتغر','دای چوپان','خاک افغان','میزان','نوبهار','شاه جوی','شملزی','شینکی','ترنک و جلدک']],
+ ['nimroz',M('نیمروز','نیمروز','نیمروز'),['شهر زرنج','چهاربرجک','چخانسور','دلارام','کنگ']],
+ ['farah',M('فراه','فراه','فراه'),['شهر فراه','انار دره','بکوا','بالابلوک','گلستان','خاک سفید','لاش و جوین','پرچمن','پشت رود','قلعه کاه','شیب کوه']],
 ];
-const cityName=id=>{const c=CITIES.find(x=>x[0]===id);return c?L(c[1]):''};
+const CITIES=PROVS.map(p=>[p[0],p[1]]);
+const provById=id=>PROVS.find(p=>p[0]===id);
+const cityName=id=>{const c=provById(id);return c?L(c[1]):''};
+const distsOf=id=>{const c=provById(id);return c?c[2]:[]};
+const placeName=a=>a.district?`${a.district}، ${cityName(a.city)}`:cityName(a.city);
+const distOptions=(prov,sel,allLabel)=>(allLabel?`<option value="">${allLabel}</option>`:`<option value="">—</option>`)+distsOf(prov).map(d=>`<option ${d===sel?'selected':''}>${esc(d)}</option>`).join('');
 const STYPE={factory:['🏭','f'],shop:['🏪','s'],person:['👤','p']};
 
 /* demo ads — written the way real sellers would post, in their own language */
@@ -278,9 +318,9 @@ const BUCKET='ad-photos';
 /* ===== state & storage ===== */
 const LS={get(k,d){try{const v=localStorage.getItem('bzk:'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('bzk:'+k,JSON.stringify(v))}catch(e){}}};
 const st={sb:null,uid:null,ads:[],loaded:false,me:Object.assign({saved:[],name:'',phone:'',wa:true,city:''},LS.get('me',{})),
-  city:LS.get('city','all'),cat:'all',stype:'all',sort:'new',q:'',draft:null};
-const COLS='id,created_at,owner,title,cat,price,stype,sale,city,descr,name,phone,wa,images,thumb,sold';
-const fromRow=r=>({id:r.id,at:Date.parse(r.created_at),owner:r.owner,title:r.title,cat:r.cat,price:Number(r.price)||0,stype:r.stype,sale:r.sale,city:r.city,desc:r.descr||'',
+  city:LS.get('city','all'),district:'',cat:'all',stype:'all',sort:'new',q:'',draft:null};
+const COLS='id,created_at,owner,title,cat,price,stype,sale,city,district,descr,name,phone,wa,images,thumb,sold';
+const fromRow=r=>({id:r.id,at:Date.parse(r.created_at),owner:r.owner,title:r.title,cat:r.cat,price:Number(r.price)||0,stype:r.stype,sale:r.sale,city:r.city,district:r.district||'',desc:r.descr||'',
   name:r.name,phone:r.phone,wa:!!r.wa,images:r.images||[],thumb:r.thumb||'',nimg:(r.images||[]).length,sold:!!r.sold,icon:catById(r.cat).i});
 function saveMe(){LS.set('me',st.me)}
 async function initDb(){
@@ -310,7 +350,7 @@ async function saveAd(id,ad,imgs,isNew){
   const urls=[];for(let i=0;i<imgs.length;i++){const im=imgs[i];urls.push(im.startsWith('data:')?await upload(`${uid}/${id}/${v}-${i}.jpg`,im):im)}
   let thumb=ad.thumbData?await upload(`${uid}/${id}/${v}-t.jpg`,ad.thumbData):(urls.length?ad.thumb||'':'');
   if(!urls.length)thumb='';
-  const row={id,title:ad.title,cat:ad.cat,price:ad.price,stype:ad.stype,sale:ad.sale,city:ad.city,descr:ad.desc,name:ad.name,phone:ad.phone,wa:ad.wa,images:urls,thumb,sold:!!ad.sold};
+  const row={id,title:ad.title,cat:ad.cat,price:ad.price,stype:ad.stype,sale:ad.sale,city:ad.city,district:ad.district||'',descr:ad.desc,name:ad.name,phone:ad.phone,wa:ad.wa,images:urls,thumb,sold:!!ad.sold};
   const q=isNew?st.sb.from('ads').insert({...row,owner:uid}).select(COLS).single():st.sb.from('ads').update(row).eq('id',id).select(COLS).single();
   const {data,error}=await q;if(error)throw error;
   const a=fromRow(data);const i=st.ads.findIndex(x=>x.id===id);if(i>=0)st.ads[i]=a;else st.ads.unshift(a);
@@ -344,7 +384,7 @@ function adCard(a){
     <div class="ph-tags" style="position:absolute;top:8px;inset-inline-start:8px;display:flex;gap:4px;flex-wrap:wrap;max-width:75%">${a.sold?`<span class="tag sold">${t('sold')}</span>`:''}${stTag(a)}${saleTag(a)}</div>
     <button class="heart ${sv?'on':''}" data-act="save" data-id="${a.id}" aria-label="${t('saved')}">${sv?'♥':'♡'}</button>
     ${a.demo?`<span class="tag demo" style="position:absolute;bottom:8px;inset-inline-end:8px">${t('sample')}</span>`:''}</div>
-    <div class="bd"><div class="tt">${esc(a.title)}</div><div class="pr">${priceHtml(a)}</div><div class="mt">📍 ${esc(cityName(a.city))} · ${ago(a.at)}</div></div></a>`;
+    <div class="bd"><div class="tt">${esc(a.title)}</div><div class="pr">${priceHtml(a)}</div><div class="mt">📍 ${esc(placeName(a))} · ${ago(a.at)}</div></div></a>`;
 }
 function toast(m,err){const d=document.createElement('div');d.className='toast'+(err?' err':'');d.textContent=m;document.getElementById('toasts').appendChild(d);setTimeout(()=>d.remove(),2800)}
 function modal(h){document.getElementById('modal').innerHTML=h?`<div class="mbg" data-act="mclose"><div class="mdl">${h}</div></div>`:''}
@@ -371,21 +411,23 @@ function renderChrome(){
 function filtered(){
   let a=allAds();
   if(st.city!=='all')a=a.filter(x=>x.city===st.city);
+  if(st.city!=='all'&&st.district)a=a.filter(x=>x.district===st.district);
   if(st.cat!=='all')a=a.filter(x=>x.cat===st.cat);
   if(st.stype==='wholesale')a=a.filter(x=>x.sale!=='retail');else if(st.stype!=='all')a=a.filter(x=>x.stype===st.stype);
-  if(st.q.trim()){const ws=norm(st.q).split(' ');a=a.filter(x=>{const hay=norm([x.title,x.desc,x.name,L(catById(x.cat).n),cityName(x.city)].join(' '));return ws.every(w=>hay.includes(w))})}
+  if(st.q.trim()){const ws=norm(st.q).split(' ');a=a.filter(x=>{const hay=norm([x.title,x.desc,x.name,...Object.values(catById(x.cat).n),...Object.values((provById(x.city)||[0,{}])[1]),x.district||''].join(' '));return ws.every(w=>hay.includes(w))})}
   const S={new:(x,y)=>y.at-x.at,cheap:(x,y)=>(x.price||1e12)-(y.price||1e12),exp:(x,y)=>(y.price||0)-(x.price||0)};
   return [...a].sort(S[st.sort]||S.new).sort((x,y)=>(x.sold?1:0)-(y.sold?1:0));
 }
 function vHome(){
   const ads=filtered();
-  const where=st.city==='all'?t('all_af'):cityName(st.city);
+  const where=st.city==='all'?t('all_af'):(st.district?`${st.district}، ${cityName(st.city)}`:cityName(st.city));
   return `<section class="hero"><div class="wrap"><h1>${t('hero')}</h1><p>${t('hero_d')}</p>
     <form class="sbox" id="sform"><input id="sq" type="search" placeholder="${t('search_ph')}" value="${esc(st.q)}" autocomplete="off"><button>🔍 ${t('search')}</button></form></div></section>
   <div class="wrap">
     <div class="cats">${[{id:'all',i:'🗂️',n:M(t('all'))},...CATS].map(c=>`<button class="cat ${st.cat===c.id?'on':''}" data-act="cat" data-id="${c.id}"><span class="ci">${c.i}</span>${L(c.n)}</button>`).join('')}</div>
     <div class="chips">${[['all',t('all')],['factory','🏭 '+t('factory')],['shop','🏪 '+t('shop')],['person','👤 '+t('person')],['wholesale','📦 '+t('wholesale')]].map(([k,l])=>`<button class="chip ${st.stype===k?'on':''}" data-act="stype" data-k="${k}">${l}</button>`).join('')}
       <span class="sp"></span><select id="sortsel" aria-label="sort">${['new','cheap','exp'].map(k=>`<option value="${k}" ${st.sort===k?'selected':''}>${t('sort_'+k)}</option>`).join('')}</select></div>
+    ${st.city!=='all'?`<div class="drow"><label>📍 ${t('district')}:</label><select id="distsel">${distOptions(st.city,st.district,t('all_districts'))}</select></div>`:''}
     <div class="fh"><h2>${st.q.trim()?`🔍 «${esc(st.q.trim())}»`:t('latest')}</h2><span class="faint" style="font-size:13px">${t('in_city',esc(where))} · ${t('results',num(ads.length))}</span></div>
     ${!st.loaded?`<div class="empty"><div class="e">⏳</div></div>`:ads.length?`<div class="grid">${ads.map(adCard).join('')}</div>`:allAds().length?`<div class="empty"><div class="e">🔍</div><p>${t('no_results')}</p><a class="btn p" href="#post">＋ ${t('post')}</a></div>`:`<div class="empty" style="padding:44px 18px"><div class="e">🎉</div><h2 style="margin:6px 0">${t('first_t')}</h2><p style="margin:0 0 16px">${t('first_d')}</p><a class="btn p" href="#post" style="height:52px;font-size:16px">＋ ${t('post')}</a></div>`}
   </div>`;
@@ -403,13 +445,13 @@ function vAd(id){
     <div class="card pad info">
       <div class="row" style="flex-wrap:wrap;gap:4px;margin-bottom:6px">${a.sold?`<span class="tag sold">${t('sold')}</span>`:''}${stTag(a)}${saleTag(a)}${a.demo?`<span class="tag demo">${t('sample')}</span>`:''}</div>
       <h1>${esc(a.title)}</h1>
-      <div class="faint" style="font-size:13px">📍 ${esc(cityName(a.city))} · ${t('posted')} ${ago(a.at)}</div>
+      <div class="faint" style="font-size:13px">📍 ${esc(placeName(a))} · ${t('posted')} ${ago(a.at)}</div>
       <div class="price">${priceHtml(a,1)}</div>
       ${a.sold?'':`<div class="cta"><a class="btn call" href="tel:${esc(ph.replace(/\s/g,''))}">📞 ${t('call')}</a>${a.wa?`<a class="btn wa" href="https://wa.me/${waNum(a.phone)}" target="_blank" rel="noopener">💬 ${t('whatsapp')}</a>`:`<button class="btn" data-act="copy" data-p="${esc(ph)}">📋 ${t('copy')}</button>`}</div>
       <div class="num"><b dir="ltr">${esc(ph)}</b><button class="btn sm" data-act="copy" data-p="${esc(ph)}">${t('copy')}</button></div>`}
       <div class="seller"><div class="av" style="--h:${hashH(a.phone)}">${esc((a.name||'?').trim()[0]||'?')}</div><div style="flex:1;min-width:0"><div class="faint" style="font-size:12px">${t('seller')}</div><b>${esc(a.name)}</b><div class="faint" style="font-size:12.5px">${STYPE[a.stype]?.[0]||''} ${t(a.stype)}</div></div>
         <button class="heart ${sv?'on':''}" style="position:static" data-act="save" data-id="${a.id}">${sv?'♥':'♡'}</button></div>
-      <dl class="kv"><dt>${t('category')}</dt><dd>${c.i} ${L(c.n)}</dd><dt>${t('sale_type')}</dt><dd>${t(a.sale||'retail')}</dd><dt>${t('city')}</dt><dd>${esc(cityName(a.city))}</dd></dl>
+      <dl class="kv"><dt>${t('category')}</dt><dd>${c.i} ${L(c.n)}</dd><dt>${t('sale_type')}</dt><dd>${t(a.sale||'retail')}</dd><dt>${t('province')}</dt><dd>${esc(cityName(a.city))}</dd>${a.district?`<dt>${t('district')}</dt><dd>${esc(a.district)}</dd>`:''}</dl>
       <h3 style="margin:14px 0 4px">${t('desc')}</h3><p style="white-space:pre-line;margin:0">${esc(a.desc)||'—'}</p>
       ${mine?`<div class="row" style="margin-top:16px;flex-wrap:wrap"><a class="btn sm" href="#edit-${a.id}">✎ ${t('edit')}</a><button class="btn sm" data-act="sold" data-id="${a.id}">${a.sold?'↺ '+t('relist'):'✓ '+t('mark_sold')}</button><button class="btn sm d" data-act="del" data-id="${a.id}">${t('del')}</button></div>`:''}
       <div class="safe">${t('safety')}</div>
@@ -431,7 +473,7 @@ function vPost(editId){
     st.draft={_for:editId||'new',imgs:[],stype:ed?ed.stype:(st.me.stype||'person'),sale:ed?ed.sale:'retail',loaded:!ed};
     if(ed){st.draft.imgs=[...(ed.images||[])];st.draft.loaded=true}
   }
-  const d=st.draft;const a=ed||{title:'',cat:'',price:'',city:st.me.city||(st.city!=='all'?st.city:''),phone:st.me.phone,name:st.me.name,wa:st.me.wa!==false,desc:''};
+  const d=st.draft;const a=ed||{title:'',cat:'',price:'',city:st.me.city||(st.city!=='all'?st.city:''),district:st.me.district||'',phone:st.me.phone,name:st.me.name,wa:st.me.wa!==false,desc:''};
   const seg=(name,opts,val)=>`<div class="seg">${opts.map(([v,i,l])=>`<label><input type="radio" name="${name}" value="${v}" ${val===v?'checked':''}><span class="i">${i}</span>${l}</label>`).join('')}</div>`;
   return `<div class="wrap" style="max-width:680px"><h1 style="font-size:21px;margin:16px 0 10px">${ed?'✎ '+t('edit_t'):'＋ '+t('post_t')}</h1>
   <form id="postform" class="card pad" novalidate>
@@ -441,7 +483,8 @@ function vPost(editId){
     <div class="fld"><label>${t('price')}</label><input name="price" inputmode="numeric" placeholder="0" value="${a.price?esc(a.price):''}"><div class="h">${t('price_h')}</div></div>
     <div class="fld"><label>${t('seller_type')}</label>${seg('stype',[['factory','🏭',t('factory')],['shop','🏪',t('shop')],['person','👤',t('person')]],d.stype)}</div>
     <div class="fld"><label>${t('sale_type')}</label>${seg('sale',[['retail','🛍️',t('retail')],['wholesale','📦',t('wholesale')],['both','🔁',t('both')]],d.sale)}</div>
-    <div class="fld"><label>${t('city')} *</label><select name="city"><option value="">—</option>${CITIES.map(([k,n])=>`<option value="${k}" ${a.city===k?'selected':''}>${L(n)}</option>`).join('')}</select></div>
+    <div class="g2f"><div class="fld"><label>${t('province')} *</label><select name="city"><option value="">—</option>${CITIES.map(([k,n])=>`<option value="${k}" ${a.city===k?'selected':''}>${L(n)}</option>`).join('')}</select></div>
+    <div class="fld"><label>${t('district')} *</label><select name="district">${distOptions(a.city,a.district||'')}</select></div></div>
     <div class="fld"><label>${t('desc')}</label><textarea name="desc" maxlength="1500">${esc(a.desc)}</textarea></div>
     <div class="fld"><label>${t('name')} *</label><input name="name" maxlength="60" value="${esc(a.name)}"></div>
     <div class="fld"><label>${t('phone')} *</label><input name="phone" type="tel" dir="ltr" maxlength="16" placeholder="07XX XXX XXX" value="${esc(a.phone)}" style="text-align:start"><label class="chk"><input type="checkbox" name="wa" ${a.wa?'checked':''}> 💬 ${t('has_wa')}</label></div>
@@ -458,7 +501,7 @@ function vMine(){
   const mine=st.ads.filter(a=>a.owner===st.uid).sort((a,b)=>b.at-a.at);
   return `<div class="wrap" style="max-width:780px"><div class="tabs"><a class="on" href="#mine">📋 ${t('my_ads')}</a><a href="#saved">♡ ${t('saved')}</a></div>
   ${mine.length?`<div class="card">${mine.map(a=>`<div class="mine"><a href="#ad-${a.id}">${photo(a)}</a><div style="flex:1;min-width:0"><a href="#ad-${a.id}"><b>${esc(a.title)}</b></a>
-    <div style="font-weight:800">${priceHtml(a)}</div><div class="faint" style="font-size:12px">📍 ${esc(cityName(a.city))} · ${ago(a.at)} ${a.sold?`<span class="tag sold">${t('sold')}</span>`:''}</div>
+    <div style="font-weight:800">${priceHtml(a)}</div><div class="faint" style="font-size:12px">📍 ${esc(placeName(a))} · ${ago(a.at)} ${a.sold?`<span class="tag sold">${t('sold')}</span>`:''}</div>
     <div class="row" style="margin-top:6px;flex-wrap:wrap;gap:6px"><a class="btn sm" href="#edit-${a.id}">✎ ${t('edit')}</a><button class="btn sm" data-act="sold" data-id="${a.id}">${a.sold?'↺ '+t('relist'):'✓ '+t('mark_sold')}</button><button class="btn sm d" data-act="del" data-id="${a.id}">${t('del')}</button></div></div></div>`).join('')}</div>`
   :`<div class="empty"><div class="e">📋</div><p>${t('no_my_ads')}</p><a class="btn p" href="#post">＋ ${t('post_first')}</a></div>`}</div>`;
 }
@@ -532,7 +575,7 @@ document.addEventListener('click',e=>{
   if(act==='cat'){e.preventDefault();st.cat=a.dataset.id;if(cur()!=='home')location.hash='#home';else route(true);return}
   if(act==='stype'){st.stype=a.dataset.k;route(true);return}
   if(act==='city'){modal(`<h3>${t('choose_city')}</h3><div class="clist">${[['all',M(t('all_af'))],...CITIES].map(([k,n])=>`<button data-act="setcity" data-k="${k}" class="${st.city===k?'on':''}">📍 ${L(n)}</button>`).join('')}</div>`);return}
-  if(act==='setcity'){st.city=a.dataset.k;LS.set('city',st.city);modal('');if(cur()!=='home')location.hash='#home';else route(true);return}
+  if(act==='setcity'){st.city=a.dataset.k;st.district='';LS.set('city',st.city);modal('');if(cur()!=='home')location.hash='#home';else route(true);return}
   if(act==='copy'){const p=a.dataset.p;(navigator.clipboard?navigator.clipboard.writeText(latinDigits(p)):Promise.reject()).then(()=>toast(t('copied'))).catch(()=>toast(p));return}
   if(act==='rmimg'){st.draft.imgs.splice(+a.dataset.i,1);drawPhotos();return}
   if(act==='sold'){const ad=st.ads.find(x=>x.id===a.dataset.id&&x.owner===st.uid);if(ad)setSold(ad,!ad.sold).then(()=>route(true)).catch(()=>{});return}
@@ -545,6 +588,8 @@ document.addEventListener('change',e=>{
   const el=e.target;
   if(el.id==='langsel'){LANG=el.value;try{localStorage.setItem('bzk:lang',LANG)}catch(_){}route(true);return}
   if(el.id==='sortsel'){st.sort=el.value;route(true);return}
+  if(el.id==='distsel'){st.district=el.value;route(true);return}
+  if(el.name==='city'&&el.form&&el.form.id==='postform'){const ds=el.form.elements.district;ds.innerHTML=distOptions(el.value,'');ds.classList.remove('bad');return}
   if(el.id==='pfile'){const files=[...el.files];el.value='';if(!st.draft)return;
     const room=3-st.draft.imgs.length;if(files.length>room)toast(t('max3'));
     files.slice(0,Math.max(0,room)).forEach(f=>resize(f,900,60000).then(u=>{if(st.draft.imgs.length<3){st.draft.imgs.push(u);drawPhotos()}}));return}
@@ -562,7 +607,7 @@ document.addEventListener('submit',async e=>{
     setTimeout(()=>document.querySelector('.fh')?.scrollIntoView({behavior:'smooth',block:'start'}),50);return}
   if(f.id==='postform'){
     const fd=Object.fromEntries(new FormData(f).entries());let ok=true;
-    ['title','cat','city','name','phone'].forEach(n=>{const bad=!String(fd[n]||'').trim();f.elements[n].classList.toggle('bad',bad);if(bad)ok=false});
+    ['title','cat','city','district','name','phone'].forEach(n=>{const bad=!String(fd[n]||'').trim();f.elements[n].classList.toggle('bad',bad);if(bad)ok=false});
     const digits=latinDigits(fd.phone||'').replace(/\D/g,'');if(digits.length<9){f.elements.phone.classList.add('bad');ok=false}
     if(!ok){toast(t('fill'),1);f.querySelector('.bad')?.scrollIntoView({behavior:'smooth',block:'center'});return}
     const editId=cur().startsWith('edit-')?cur().slice(5):null;const ex=editId&&st.ads.find(x=>x.id===editId&&x.owner===st.uid);
@@ -571,10 +616,10 @@ document.addEventListener('submit',async e=>{
       const id=ex?ex.id:crypto.randomUUID();
       const first=d.imgs[0]||'';const thumbData=first.startsWith('data:')?await resize(first,420,22000):'';
       const keepThumb=!first?'':(ex&&first===ex.images[0]?ex.thumb:first);
-      const ad={title:fd.title.trim().slice(0,90),cat:fd.cat,price:toNum(fd.price),stype:d.stype||'person',sale:d.sale||'retail',city:fd.city,desc:(fd.desc||'').trim().slice(0,1500),
+      const ad={title:fd.title.trim().slice(0,90),cat:fd.cat,price:toNum(fd.price),stype:d.stype||'person',sale:d.sale||'retail',city:fd.city,district:(fd.district||'').slice(0,60),desc:(fd.desc||'').trim().slice(0,1500),
         name:fd.name.trim().slice(0,60),phone:latinDigits(fd.phone).trim().slice(0,16),wa:!!fd.wa,thumb:keepThumb,thumbData,sold:ex?ex.sold:false};
       await saveAd(id,ad,d.imgs,!ex);
-      st.me={...st.me,name:ad.name,phone:ad.phone,wa:ad.wa,city:ad.city,stype:ad.stype};saveMe();
+      st.me={...st.me,name:ad.name,phone:ad.phone,wa:ad.wa,city:ad.city,district:ad.district,stype:ad.stype};saveMe();
       st.draft=null;toast(ex?t('updated'):t('published'));location.hash='#ad-'+id;
     }catch(err){console.error(err);toast(t('save_err'),1);btn.disabled=false}
   }

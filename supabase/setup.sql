@@ -9,6 +9,7 @@ create table if not exists public.ads (
   stype text not null default 'person' check (stype in ('factory','shop','person')),
   sale text not null default 'retail' check (sale in ('retail','wholesale','both')),
   city text not null check (char_length(city) <= 20),
+  district text not null default '' check (char_length(district) <= 60),
   descr text not null default '' check (char_length(descr) <= 1500),
   name text not null check (char_length(name) between 1 and 60),
   phone text not null check (char_length(phone) between 9 and 16),
@@ -18,6 +19,7 @@ create table if not exists public.ads (
   sold boolean not null default false
 );
 create index if not exists ads_created_idx on public.ads (created_at desc);
+create index if not exists ads_place_idx on public.ads (city, district);
 
 alter table public.ads enable row level security;
 drop policy if exists "ads are public" on public.ads;
