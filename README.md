@@ -4,7 +4,7 @@ A simple classifieds marketplace for Afghanistan. Factories, shop owners and ind
 
 - Languages: Dari (default), Pashto, Uzbek (Arabic script)
 - Plain HTML/CSS/JavaScript — no build step, works on any static host
-- Backend: [Supabase](https://supabase.com) (Postgres + photo storage + anonymous sign-in)
+- Backend: [Supabase](https://supabase.com) (Postgres + photo storage + email/password accounts)
 - Hosting: Cloudflare Workers static assets — domain: maamila.com
 
 ## Project structure
@@ -27,7 +27,7 @@ Pushing to `main` deploys automatically to Cloudflare (Workers Builds, worker `m
 
 ## Setup
 1. Create a Supabase project and run `supabase/setup.sql` in the SQL editor.
-2. In Supabase → Authentication → Sign In / Providers, enable **Allow anonymous sign-ins**.
+2. In Supabase → Authentication: enable email sign-up, set **Site URL** to your domain and add it to **Redirect URLs**. Users log in with email + password; only logged-in users can post.
 3. Put your project URL and publishable key in `js/config.js`.
 4. Deploy the whole folder to any static host (Cloudflare Workers/Pages, Netlify, GitHub Pages).
 

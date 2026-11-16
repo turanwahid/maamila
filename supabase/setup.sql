@@ -27,7 +27,8 @@ drop policy if exists "owner can insert" on public.ads;
 drop policy if exists "owner can update" on public.ads;
 drop policy if exists "owner can delete" on public.ads;
 create policy "ads are public" on public.ads for select using (true);
-create policy "owner can insert" on public.ads for insert to authenticated with check (owner = auth.uid());
+create policy "owner can insert" on public.ads for insert to authenticated
+  with check (owner = auth.uid() and coalesce((auth.jwt()->>'is_anonymous')::boolean, false) = false);
 create policy "owner can update" on public.ads for update to authenticated using (owner = auth.uid()) with check (owner = auth.uid());
 create policy "owner can delete" on public.ads for delete to authenticated using (owner = auth.uid());
 
@@ -40,7 +41,8 @@ drop policy if exists "bazarcha update own" on storage.objects;
 drop policy if exists "bazarcha delete own" on storage.objects;
 drop policy if exists "bazarcha list own" on storage.objects;
 create policy "bazarcha upload own" on storage.objects for insert to authenticated
-  with check (bucket_id = 'ad-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+  with check (bucket_id = 'ad-photos' and (storage.foldername(name))[1] = auth.uid()::text
+              and coalesce((auth.jwt()->>'is_anonymous')::boolean, false) = false);
 create policy "bazarcha update own" on storage.objects for update to authenticated
   using (bucket_id = 'ad-photos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "bazarcha delete own" on storage.objects for delete to authenticated

@@ -984,3 +984,22 @@ footer {
     padding-bottom: 0;
   }
 }
+
+/* accounts */
+.authlinks {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 13.5px;
+}
+.authlinks a {
+  color: var(--blue);
+  font-weight: 700;
+}
+@media (max-width: 760px) {
+  .acc .tx {
+    display: none;
+  }
+}

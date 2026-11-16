@@ -65,8 +65,14 @@ async function initDb() {
   });
   try {
     const { data } = await st.sb.auth.getSession();
-    st.uid = data && data.session ? data.session.user.id : null;
+    setUser(data && data.session ? data.session.user : null);
   } catch (e) {}
+  st.sb.auth.onAuthStateChange((ev, session) => {
+    setUser(session ? session.user : null);
+    if (ev === 'PASSWORD_RECOVERY') openAuth('newpw');
+    renderChrome();
+    if (!document.getElementById('postform') && !document.getElementById('authform')) route(true);
+  });
   await loadAds();
   setInterval(() => {
     if (cur() === 'home' && !document.hidden) loadAds();
@@ -84,12 +90,102 @@ async function loadAds() {
   st.loaded = true;
   soft(true);
 }
+/* ===== accounts (email + password) ===== */
+function setUser(u) {
+  const real = u && !u.is_anonymous;
+  st.uid = real ? u.id : null;
+  st.email = real ? u.email || '' : '';
+}
 async function ensureUser() {
   if (st.uid) return st.uid;
-  const { data, error } = await st.sb.auth.signInAnonymously();
-  if (error) throw error;
-  st.uid = data.user.id;
-  return st.uid;
+  openAuth('login');
+  throw new Error('login required');
+}
+function openAuth(mode) {
+  const f = (name, type, ph, extra = '') =>
+    `<div class="fld"><label>${t(name)}</label><input name="${name}" type="${type}" dir="ltr" autocomplete="${extra}" style="text-align:start" placeholder="${ph}"></div>`;
+  const body = {
+    login: `${f('email', 'email', 'name@example.com', 'email')}${f('password', 'password', '••••••', 'current-password')}
+      <button class="btn p blk">${t('login')}</button>
+      <div class="authlinks"><a href="#" data-act="auth" data-m="forgot">${t('forgot')}</a><span>${t('no_account')} <a href="#" data-act="auth" data-m="signup">${t('signup')}</a></span></div>`,
+    signup: `${f('email', 'email', 'name@example.com', 'email')}${f('password', 'password', '••••••', 'new-password')}
+      <button class="btn p blk">${t('signup')}</button>
+      <p class="faint" style="font-size:12.5px;text-align:center;margin:10px 0 0">${t('agree', `<a href="#terms" data-act="mclose" style="color:var(--blue)">${t('terms')}</a>`)}</p>
+      <div class="authlinks"><span>${t('have_account')} <a href="#" data-act="auth" data-m="login">${t('login')}</a></span></div>`,
+    forgot: `${f('email', 'email', 'name@example.com', 'email')}<button class="btn p blk">${t('send_link')}</button>
+      <div class="authlinks"><a href="#" data-act="auth" data-m="login">${t('login')}</a></div>`,
+    newpw: `${f('password', 'password', '••••••', 'new-password').replace(t('password'), t('new_password'))}<button class="btn p blk">${t('save')}</button>`,
+  }[mode];
+  const title = {
+    login: t('login_t'),
+    signup: t('signup_t'),
+    forgot: t('forgot_t'),
+    newpw: t('new_password'),
+  }[mode];
+  modal(`<h3>🔑 ${title}</h3><form id="authform" data-mode="${mode}" novalidate>${body}</form>`);
+  setTimeout(() => document.querySelector('#authform input')?.focus(), 50);
+}
+async function submitAuth(f) {
+  const mode = f.dataset.mode;
+  const email = (f.elements.email?.value || '').trim().toLowerCase();
+  const pw = f.elements.password?.value || '';
+  if (mode !== 'newpw' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast(t('bad_email'), 1);
+  if (mode !== 'forgot' && pw.length < 6) return toast(t('pw_short'), 1);
+  const btn = f.querySelector('button.p');
+  btn.disabled = true;
+  try {
+    if (mode === 'login') {
+      const { error } = await st.sb.auth.signInWithPassword({ email, password: pw });
+      if (error) throw error;
+      modal('');
+      toast(t('welcome'));
+    } else if (mode === 'signup') {
+      const { data, error } = await st.sb.auth.signUp({
+        email,
+        password: pw,
+        options: { emailRedirectTo: location.origin },
+      });
+      if (error) throw error;
+      if (data.user && data.user.identities && !data.user.identities.length)
+        throw { code: 'user_already_exists' };
+      modal('');
+      toast(data.session ? t('signup_ok') : t('check_email'));
+    } else if (mode === 'forgot') {
+      const { error } = await st.sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin });
+      if (error) throw error;
+      modal('');
+      toast(t('reset_sent'));
+    } else if (mode === 'newpw') {
+      const { error } = await st.sb.auth.updateUser({ password: pw });
+      if (error) throw error;
+      modal('');
+      toast(t('pw_changed'));
+    }
+    renderChrome();
+    route(true);
+  } catch (e) {
+    const code = (e && (e.code || e.message)) || '';
+    toast(
+      /already|exists|registered/i.test(code)
+        ? t('email_taken')
+        : /invalid|credentials/i.test(code)
+          ? t('auth_err')
+          : /weak|short/i.test(code)
+            ? t('pw_short')
+            : t('save_err'),
+      1,
+    );
+    btn.disabled = false;
+  }
+}
+function openAccount() {
+  modal(`<h3>👤 ${t('account')}</h3><p class="muted" dir="ltr" style="text-align:start;margin:0 0 14px">${esc(st.email)}</p>
+    <div class="clist"><button data-act="go" data-h="mine">📋 ${t('my_ads')}</button><button data-act="go" data-h="saved">♡ ${t('saved')}</button><button data-act="go" data-h="post">＋ ${t('post')}</button></div>
+    <button class="btn d blk" style="margin-top:14px" data-act="logout">↩ ${t('logout')}</button>`);
+}
+function loginPrompt(msg) {
+  return `<div class="empty" style="margin-top:16px"><div class="e">🔑</div><p>${msg}</p>
+    <div class="row" style="justify-content:center;flex-wrap:wrap"><button class="btn p" data-act="auth" data-m="login">${t('login')}</button><button class="btn" data-act="auth" data-m="signup">${t('signup')}</button></div></div>`;
 }
 function dataUrlToBlob(u) {
   const [h, b] = u.split(',');
@@ -99,13 +195,11 @@ function dataUrlToBlob(u) {
   return new Blob([arr], { type: (h.match(/:(.*?);/) || [])[1] || 'image/jpeg' });
 }
 async function upload(path, dataUrl) {
-  const { error } = await st.sb.storage
-    .from(BUCKET)
-    .upload(path, dataUrlToBlob(dataUrl), {
-      contentType: 'image/jpeg',
-      upsert: true,
-      cacheControl: '31536000',
-    });
+  const { error } = await st.sb.storage.from(BUCKET).upload(path, dataUrlToBlob(dataUrl), {
+    contentType: 'image/jpeg',
+    upsert: true,
+    cacheControl: '31536000',
+  });
   if (error) throw error;
   return st.sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
@@ -257,6 +351,7 @@ function renderChrome() {
     <button class="pill cityp" data-act="city">📍 <span class="tx">${esc(cityLabel)}</span> ▾</button>
     <span class="sp"></span>
     <nav class="dnav"><a class="pill" href="#saved">♡ ${t('saved')}</a><a class="pill" href="#mine">📋 ${t('my_ads')}</a><a class="pill postbtn" href="#post">＋ ${t('post')}</a></nav>
+    ${st.uid ? `<button class="pill acc" data-act="account" title="${esc(st.email)}">👤 <span class="tx">${t('account')}</span></button>` : `<button class="pill acc" data-act="auth" data-m="login">🔑 <span class="tx">${t('login')}</span></button>`}
     <label class="pill lpill"><span class="gl">🌐</span> <select id="langsel" aria-label="Language">${LANGS.map((l) => `<option value="${l[0]}" ${l[0] === LANG ? 'selected' : ''}>${l[1]}</option>`).join('')}</select></label>`;
   document.getElementById('bnav').innerHTML = [
     ['home', '🏠', t('home')],
@@ -392,6 +487,7 @@ async function loadGallery(a) {
   show(0);
 }
 function vPost(editId) {
+  if (!st.uid) return `<div class="wrap" style="max-width:680px">${loginPrompt(t('login_needed'))}</div>`;
   const ed = editId ? st.ads.find((x) => x.id === editId && x.owner === st.uid) : null;
   if (editId && !ed) return vAd(editId);
   if (!st.draft || st.draft._for !== (editId || 'new')) {
@@ -468,6 +564,8 @@ function drawPhotos() {
     (d.imgs.length < 3 ? `<label class="addp" for="pfile"><b>＋</b>${t('add_photo')}</label>` : '');
 }
 function vMine() {
+  if (!st.uid)
+    return `<div class="wrap" style="max-width:780px"><div class="tabs"><a class="on" href="#mine">📋 ${t('my_ads')}</a><a href="#saved">♡ ${t('saved')}</a></div>${loginPrompt(t('login_needed_mine'))}</div>`;
   const mine = st.ads.filter((a) => a.owner === st.uid).sort((a, b) => b.at - a.at);
   return `<div class="wrap" style="max-width:780px"><div class="tabs"><a class="on" href="#mine">📋 ${t('my_ads')}</a><a href="#saved">♡ ${t('saved')}</a></div>
   ${
@@ -528,7 +626,31 @@ document.addEventListener('click', (e) => {
   if (!a) return;
   const act = a.dataset.act;
   if (act === 'mclose') {
-    if (e.target === a || a.tagName === 'BUTTON') modal('');
+    if (e.target === a || a.tagName === 'BUTTON' || a.tagName === 'A') modal('');
+    return;
+  }
+  if (act === 'auth') {
+    e.preventDefault();
+    openAuth(a.dataset.m);
+    return;
+  }
+  if (act === 'account') {
+    openAccount();
+    return;
+  }
+  if (act === 'go') {
+    modal('');
+    location.hash = '#' + a.dataset.h;
+    return;
+  }
+  if (act === 'logout') {
+    modal('');
+    st.sb.auth.signOut().then(() => {
+      setUser(null);
+      toast(t('logged_out'));
+      renderChrome();
+      route(true);
+    });
     return;
   }
   if (act === 'save') {
@@ -696,6 +818,10 @@ function resize(src, max, budget) {
 document.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
+  if (f.id === 'authform') {
+    submitAuth(f);
+    return;
+  }
   if (f.id === 'sform') {
     st.q = document.getElementById('sq').value;
     document.getElementById('sq').blur();
