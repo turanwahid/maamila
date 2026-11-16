@@ -1,0 +1,8 @@
+{
+  // Cloudflare deploy settings: serves this folder as a static site
+  "name": "muddy-snow-564c",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "."
+  }
+}
