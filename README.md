@@ -22,6 +22,9 @@ supabase/setup.sql  database tables, photo storage and security rules
 ```
 Scripts load in that order as plain `<script>` tags. To preview locally, open `index.html` in a browser or run any static server (e.g. `npx serve .`).
 
+## Deploys
+Pushing to `main` deploys automatically to Cloudflare (Workers Builds, worker `muddy-snow-564c`, domain maamila.com). Settings are in `wrangler.jsonc`; files listed in `.assetsignore` are not published.
+
 ## Setup
 1. Create a Supabase project and run `supabase/setup.sql` in the SQL editor.
 2. In Supabase → Authentication → Sign In / Providers, enable **Allow anonymous sign-ins**.
