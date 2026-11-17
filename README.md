@@ -54,7 +54,9 @@ The folder holds personal data: keep it private (it is ignored by Git and never 
    **Password reset uses a code, not a link:** Brevo rewrites every link in its emails into a click-tracking link
    (sendibt3.com) that some browsers, ad blockers and VPNs block, and Brevo has no switch to turn that off. So the
    Supabase "Reset password" template shows `{{ .Token }}` (copy in `supabase/email-reset-password.html`) and the site
-   asks for that code plus the new password.
+   asks for that code plus the new password. Sign-up works the same way: the "Confirm sign up" template shows the code
+   (copy in `supabase/email-confirm-signup.html`) and the site asks for it right after signing up (or when an
+   unconfirmed account tries to log in).
 3. Put your project URL and publishable key in `js/config.js`, and the same values in `wrangler.jsonc` (vars) and
    `_headers` (the Content-Security-Policy). `tools/backup.mjs` reads them from `js/config.js`.
 4. Deploy the whole folder to any static host (Cloudflare Workers/Pages, Netlify, GitHub Pages).

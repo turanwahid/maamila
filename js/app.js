@@ -354,12 +354,18 @@ function openAuth(mode, email = '') {
       <button class="btn p blk">${t('save')}</button>
       <div class="authlinks"><a href="#" data-act="auth" data-m="forgot">${t('resend')}</a></div>`,
     newpw: `${f('password', 'password', '••••••', 'new-password').replace(t('password'), t('new_password'))}<button class="btn p blk">${t('save')}</button>`,
+    // confirm a new account with the code from the email (same reason as above: no links in emails)
+    verify: `<p class="muted" dir="ltr" style="text-align:center;margin:0 0 12px">${esc(email)}</p>
+      <div class="fld"><label>${t('code_label')}</label><input name="code" inputmode="numeric" autocomplete="one-time-code" dir="ltr" maxlength="12" style="text-align:center;letter-spacing:6px;font-size:20px" placeholder="••••••"></div>
+      <button class="btn p blk">${t('confirm')}</button>
+      <div class="authlinks"><a href="#" data-act="resend">${t('resend')}</a></div>`,
   }[mode];
   const title = {
     login: t('login_t'),
     signup: t('signup_t'),
     forgot: t('forgot_t'),
     code: t('forgot_t'),
+    verify: t('verify_t'),
     newpw: t('new_password'),
   }[mode];
   modal(`<h3>🔑 ${title}</h3><form id="authform" data-mode="${mode}" data-email="${esc(email)}" novalidate>${body}</form>`);
@@ -371,13 +377,19 @@ async function submitAuth(f) {
   const pw = f.elements.password?.value || '';
   const code = latinDigits(f.elements.code?.value || '').replace(/\D/g, '');
   if (mode !== 'newpw' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast(t('bad_email'), 1);
-  if (mode === 'code' && code.length < 6) return toast(t('code_bad'), 1);
-  if (mode !== 'forgot' && pw.length < 6) return toast(t('pw_short'), 1);
+  if ((mode === 'code' || mode === 'verify') && code.length < 6) return toast(t('code_bad'), 1);
+  if (mode !== 'forgot' && mode !== 'verify' && pw.length < 6) return toast(t('pw_short'), 1);
   const btn = f.querySelector('button.p');
   btn.disabled = true;
   try {
     if (mode === 'login') {
       const { error } = await st.sb.auth.signInWithPassword({ email, password: pw });
+      if (error && error.code === 'email_not_confirmed') {
+        await st.sb.auth.resend({ type: 'signup', email });
+        openAuth('verify', email);
+        toast(t('verify_sent'));
+        return;
+      }
       if (error) throw error;
       modal('');
       toast(t('welcome'));
@@ -390,8 +402,18 @@ async function submitAuth(f) {
       if (error) throw error;
       if (data.user && data.user.identities && !data.user.identities.length)
         throw { code: 'user_already_exists' };
+      if (!data.session) {
+        openAuth('verify', email);
+        toast(t('verify_sent'));
+        return;
+      }
       modal('');
-      toast(data.session ? t('signup_ok') : t('check_email'));
+      toast(t('signup_ok'));
+    } else if (mode === 'verify') {
+      const { error } = await st.sb.auth.verifyOtp({ email, token: code, type: 'signup' });
+      if (error) throw { code: 'otp_bad' };
+      modal('');
+      toast(t('signup_ok'));
     } else if (mode === 'forgot') {
       const { error } = await st.sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin });
       if (error) throw error;
@@ -925,6 +947,13 @@ document.addEventListener('click', (e) => {
   if (act === 'auth') {
     e.preventDefault();
     openAuth(a.dataset.m);
+    return;
+  }
+  if (act === 'resend') {
+    e.preventDefault();
+    const email = (a.closest('form') || {}).dataset?.email;
+    if (!email || !st.sb) return;
+    st.sb.auth.resend({ type: 'signup', email }).then(({ error }) => toast(error ? t('save_err') : t('verify_sent'), error ? 1 : 0));
     return;
   }
   if (act === 'account') {
