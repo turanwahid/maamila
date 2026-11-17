@@ -1247,3 +1247,7 @@ document.addEventListener('submit', async (e) => {
 
 route();
 initDb();
+// Lets the site be installed as an app (see sw.js).
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}

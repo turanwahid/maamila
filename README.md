@@ -20,6 +20,7 @@ js/config.js        Supabase URL and publishable key
 js/app.js           app logic: database, pages, posting, filters
 supabase/setup.sql  database tables, photo storage and security rules
 _headers            security headers for the site (read by Cloudflare, not published)
+manifest.webmanifest, icons/, sw.js  make the site installable as an app ("Install" / "Add to Home screen")
 worker/index.js     Cloudflare Worker: serves the files + daily keep-awake check
 tools/backup.mjs    backup command (see Backups)
 ```
