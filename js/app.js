@@ -17,9 +17,21 @@ const LS = {
 };
 const st = {
   sb: null,
+  dbErr: false,
   uid: null,
-  ads: [],
-  loaded: false,
+  // home list: one page at a time from the server, for the current filters
+  list: [],
+  total: 0,
+  more: false,
+  listKey: '', // filters the list was loaded for
+  loadingKey: '',
+  listErr: '',
+  listStale: false,
+  byId: new Map(), // id -> full ad (with description + photos), or null when it does not exist
+  rel: new Map(), // id -> { more, sim } ads shown under an ad
+  mine: null, // { uid, ads }
+  savedAds: null, // { key, ads }
+  err: new Set(), // keys of loads that failed (cleared by "try again")
   me: Object.assign({ saved: [], name: '', phone: '', wa: true, city: '' }, LS.get('me', {})),
   city: LS.get('city', 'all'),
   district: '',
@@ -29,77 +41,244 @@ const st = {
   q: '',
   draft: null,
 };
-const COLS =
-  'id,created_at,owner,title,cat,price,stype,sale,city,district,descr,name,phone,wa,images,thumb,sold';
-const fromRow = (r) => ({
-  id: r.id,
-  at: Date.parse(r.created_at),
-  owner: r.owner,
-  title: r.title,
-  cat: r.cat,
-  price: Number(r.price) || 0,
-  stype: r.stype,
-  sale: r.sale,
-  city: r.city,
-  district: r.district || '',
-  desc: r.descr || '',
-  name: r.name,
-  phone: r.phone,
-  wa: !!r.wa,
-  images: r.images || [],
-  thumb: r.thumb || '',
-  nimg: (r.images || []).length,
-  sold: !!r.sold,
-  icon: catById(r.cat).i,
-});
+const PAGE = 48;
+const LIST_COLS =
+  'id,created_at,owner,title,cat,price,stype,sale,city,district,name,phone,wa,thumb,sold';
+const COLS = LIST_COLS + ',descr,images';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PHOTO_PREFIX = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/`;
+/** Only addresses of photos in our own storage are shown (anything else in the database is ignored). */
+const isPhotoUrl = (u) =>
+  typeof u === 'string' &&
+  u.startsWith(PHOTO_PREFIX) &&
+  /^[A-Za-z0-9_./-]+$/.test(u.slice(PHOTO_PREFIX.length)) &&
+  !u.includes('..');
+const fromRow = (r) => {
+  const images = (r.images || []).filter(isPhotoUrl);
+  return {
+    id: r.id,
+    at: Date.parse(r.created_at),
+    owner: r.owner,
+    title: r.title,
+    cat: r.cat,
+    price: Number(r.price) || 0,
+    stype: r.stype,
+    sale: r.sale,
+    city: r.city,
+    district: r.district || '',
+    desc: r.descr || '',
+    name: r.name,
+    phone: r.phone,
+    wa: !!r.wa,
+    images,
+    thumb: isPhotoUrl(r.thumb) ? r.thumb : '',
+    sold: !!r.sold,
+    icon: catById(r.cat).i,
+  };
+};
 function saveMe() {
   LS.set('me', st.me);
 }
 async function initDb() {
   if (!window.supabase) {
-    toast(t('save_err'), 1);
+    st.dbErr = true;
+    route(true);
     return;
   }
   st.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: { persistSession: true, autoRefreshToken: true },
   });
+  // Listen before reading the session, so the "password recovery" event from a reset link is not missed.
+  st.sb.auth.onAuthStateChange((ev, session) => {
+    const before = st.uid;
+    setUser(session ? session.user : null);
+    // Supabase advises against doing more work inside this callback, so continue right after it.
+    setTimeout(() => {
+      if (ev === 'PASSWORD_RECOVERY') openAuth('newpw');
+      if (st.uid === before) return;
+      renderChrome();
+      if (!document.getElementById('postform') && !document.getElementById('authform')) route(true);
+    }, 0);
+  });
   try {
     const { data } = await st.sb.auth.getSession();
     setUser(data && data.session ? data.session.user : null);
   } catch (e) {}
-  st.sb.auth.onAuthStateChange((ev, session) => {
-    setUser(session ? session.user : null);
-    if (ev === 'PASSWORD_RECOVERY') openAuth('newpw');
-    renderChrome();
-    if (!document.getElementById('postform') && !document.getElementById('authform')) route(true);
-  });
-  await loadAds();
+  route(true);
   setInterval(() => {
-    if (cur() === 'home' && !document.hidden) loadAds();
+    if (cur() === 'home' && !document.hidden && st.listKey === filterKey()) loadList(true);
   }, 60000);
 }
-async function loadAds() {
-  const { data, error } = await st.sb
-    .from('ads')
-    .select(COLS)
-    .order('created_at', { ascending: false })
-    .limit(1000);
-  if (!error) {
-    st.ads = (data || []).map(fromRow);
+
+/* ===== loading ads ===== */
+const searchWords = (q) =>
+  norm(q)
+    .split(' ')
+    .map((w) => w.replace(/[^\p{L}\p{M}\p{N}]/gu, ''))
+    .filter(Boolean)
+    .slice(0, 6);
+const filterKey = () =>
+  JSON.stringify([st.city, st.city === 'all' ? '' : st.district, st.cat, st.stype, st.sort, searchWords(st.q)]);
+function listQuery(cols, count) {
+  let q = st.sb.from('ads').select(cols, count ? { count: 'exact' } : undefined);
+  if (st.city !== 'all') {
+    q = q.eq('city', st.city);
+    if (st.district) q = q.eq('district', st.district);
   }
-  st.loaded = true;
-  soft(true);
+  if (st.cat !== 'all') q = q.eq('cat', st.cat);
+  if (st.stype === 'wholesale') q = q.neq('sale', 'retail');
+  else if (st.stype !== 'all') q = q.eq('stype', st.stype);
+  // every word must match: the text of the ad, or a category / province name (in any language)
+  for (const w of searchWords(st.q)) {
+    const cats = CATS.filter((c) => Object.values(c.n).some((n) => norm(n).includes(w))).map((c) => c.id);
+    const provs = PROVS.filter((p) => Object.values(p[1]).some((n) => norm(n).includes(w))).map((p) => p[0]);
+    const alts = [`search.ilike.*${w}*`];
+    if (cats.length) alts.push(`cat.in.(${cats.join(',')})`);
+    if (provs.length) alts.push(`city.in.(${provs.join(',')})`);
+    q = alts.length > 1 ? q.or(alts.join(',')) : q.ilike('search', `%${w}%`);
+  }
+  q = q.order('sold', { ascending: true });
+  if (st.sort === 'cheap') q = q.order('price_n', { ascending: true, nullsFirst: false });
+  else if (st.sort === 'exp') q = q.order('price', { ascending: false });
+  return q.order('created_at', { ascending: false }).order('id', { ascending: true });
 }
+let listSeq = 0;
+/** Loads the first page for the current filters (keep: also reload the extra pages already shown). */
+async function loadList(keep) {
+  if (!st.sb) return;
+  const key = filterKey();
+  keep = keep && st.listKey === key;
+  st.loadingKey = key;
+  const n = keep ? Math.min(Math.max(PAGE, st.list.length), 480) : PAGE;
+  const seq = ++listSeq;
+  const { data, error, count } = await listQuery(LIST_COLS, true).range(0, n - 1);
+  if (seq !== listSeq) return; // filters changed meanwhile; a newer load is running
+  st.loadingKey = '';
+  if (error) {
+    console.error(error);
+    if (!keep) st.listErr = key;
+  } else {
+    st.list = data.map(fromRow);
+    st.total = count ?? st.list.length;
+    st.more = st.list.length < st.total;
+    st.listKey = key;
+    st.listErr = '';
+    st.listStale = false;
+  }
+  if (cur() === 'home') soft();
+}
+function ensureList() {
+  const key = filterKey();
+  if (!st.sb || st.loadingKey === key || st.listErr === key) return;
+  if (st.listKey === key && !st.listStale) return;
+  loadList(st.listKey === key);
+}
+async function loadMore(btn) {
+  const key = filterKey();
+  if (st.listKey !== key) return;
+  btn.disabled = true;
+  const seq = ++listSeq;
+  const { data, error } = await listQuery(LIST_COLS).range(st.list.length, st.list.length + PAGE - 1);
+  if (seq !== listSeq) return;
+  if (error) {
+    btn.disabled = false;
+    return toast(t('load_err'), 1);
+  }
+  const seen = new Set(st.list.map((x) => x.id));
+  st.list.push(...data.map(fromRow).filter((x) => !seen.has(x.id)));
+  st.more = data.length === PAGE && st.list.length < st.total;
+  route(true);
+}
+const pending = new Set();
+/** Runs a load once; when it finishes the page is drawn again (if the visitor is still on it). */
+function fetchOnce(key, fn) {
+  if (!st.sb || pending.has(key) || st.err.has(key)) return;
+  pending.add(key);
+  const at = cur();
+  fn()
+    .catch((e) => {
+      console.error(e);
+      st.err.add(key);
+    })
+    .finally(() => {
+      pending.delete(key);
+      if (cur() === at) soft();
+    });
+}
+/** The full ad, undefined while it loads, null if it does not exist. */
+function getAd(id) {
+  if (!UUID_RE.test(id)) return null;
+  if (st.byId.has(id)) return st.byId.get(id);
+  fetchOnce('ad:' + id, async () => {
+    const { data, error } = await st.sb.from('ads').select(COLS).eq('id', id).maybeSingle();
+    if (error) throw error;
+    st.byId.set(id, data ? fromRow(data) : null);
+  });
+}
+function getRel(a) {
+  if (st.rel.has(a.id)) return st.rel.get(a.id);
+  fetchOnce('rel:' + a.id, async () => {
+    const [m, s] = await Promise.all([
+      st.sb.from('ads').select(LIST_COLS).eq('phone', a.phone).neq('id', a.id)
+        .order('created_at', { ascending: false }).limit(4),
+      st.sb.from('ads').select(LIST_COLS).eq('cat', a.cat).neq('phone', a.phone).neq('id', a.id)
+        .order('sold', { ascending: true }).order('created_at', { ascending: false }).limit(8),
+    ]);
+    if (m.error || s.error) throw m.error || s.error;
+    st.rel.set(a.id, { more: m.data.map(fromRow), sim: s.data.map(fromRow) });
+  });
+  return { more: [], sim: [] };
+}
+function getMine() {
+  if (st.mine && st.mine.uid === st.uid) return st.mine.ads;
+  const uid = st.uid;
+  fetchOnce('mine:' + uid, async () => {
+    const { data, error } = await st.sb.from('ads').select(COLS).eq('owner', uid)
+      .order('created_at', { ascending: false }).limit(1000);
+    if (error) throw error;
+    const ads = data.map(fromRow);
+    ads.forEach((a) => st.byId.set(a.id, a));
+    st.mine = { uid, ads };
+  });
+}
+const savedIds = () => st.me.saved.filter((id) => UUID_RE.test(id)).slice(-200);
+function getSaved() {
+  const ids = savedIds();
+  const key = ids.join(',');
+  if (!ids.length) return [];
+  if (st.savedAds && st.savedAds.key === key) return st.savedAds.ads;
+  fetchOnce('saved:' + key, async () => {
+    const { data, error } = await st.sb.from('ads').select(LIST_COLS).in('id', ids);
+    if (error) throw error;
+    const m = new Map(data.map((r) => [r.id, fromRow(r)]));
+    st.savedAds = { key, ads: ids.map((id) => m.get(id)).filter(Boolean) };
+  });
+}
+/** Every copy of an ad that is kept in memory (lists, single ads). */
+const adLists = () =>
+  [st.list, st.mine && st.mine.ads, st.savedAds && st.savedAds.ads, ...[...st.rel.values()].flatMap((r) => [r.more, r.sim])].filter(Boolean);
+function patchAd(id, fields) {
+  for (const l of adLists()) for (const x of l) if (x.id === id) Object.assign(x, fields);
+  const b = st.byId.get(id);
+  if (b) Object.assign(b, fields);
+}
+function removeAd(id) {
+  for (const l of adLists()) for (let i = l.length - 1; i >= 0; i--) if (l[i].id === id) l.splice(i, 1);
+  st.byId.set(id, null);
+  st.total = Math.max(0, st.total - 1);
+}
+
 /* ===== accounts (email + password) ===== */
 function setUser(u) {
   const real = u && !u.is_anonymous;
   st.uid = real ? u.id : null;
   st.email = real ? u.email || '' : '';
 }
+const LOGIN_REQUIRED = 'login required';
 async function ensureUser() {
   if (st.uid) return st.uid;
   openAuth('login');
-  throw new Error('login required');
+  throw new Error(LOGIN_REQUIRED);
 }
 function openAuth(mode) {
   const f = (name, type, ph, extra = '') =>
@@ -244,9 +423,11 @@ async function saveAd(id, ad, imgs, isNew) {
   const { data, error } = await q;
   if (error) throw error;
   const a = fromRow(data);
-  const i = st.ads.findIndex((x) => x.id === id);
-  if (i >= 0) st.ads[i] = a;
-  else st.ads.unshift(a);
+  if (st.byId.get(id)) patchAd(id, a);
+  else if (st.mine && st.mine.uid === uid) st.mine.ads.unshift(a);
+  st.byId.set(id, a);
+  st.listStale = true; // the home list reloads (in the background) the next time it is shown
+  st.rel.clear();
   cleanupPhotos(uid, id, [...urls, thumb]);
   return a;
 }
@@ -264,7 +445,7 @@ async function setSold(ad, sold) {
     toast(t('save_err'), 1);
     throw error;
   }
-  ad.sold = sold;
+  patchAd(ad.id, { sold });
 }
 async function delAd(id) {
   const { error } = await st.sb.from('ads').delete().eq('id', id);
@@ -272,28 +453,23 @@ async function delAd(id) {
     toast(t('save_err'), 1);
     throw error;
   }
-  st.ads = st.ads.filter((x) => x.id !== id);
+  removeAd(id);
   if (st.uid) cleanupPhotos(st.uid, id, []);
 }
-async function getImgs(id) {
-  const a = st.ads.find((x) => x.id === id);
-  return a ? a.images : [];
-}
+/** Draws the page again after new data arrived (not while a post form is open, so nothing typed is lost). */
 let sT = null;
-function soft(force) {
+function soft() {
   clearTimeout(sT);
   sT = setTimeout(() => {
-    if (!force && document.getElementById('postform')) return;
     if (document.getElementById('postform')) return;
-    const a = document.activeElement;
-    if (!force && a && /INPUT|TEXTAREA/.test(a.tagName)) return;
     route(true);
   }, 100);
 }
 
 /* ===== helpers ===== */
-const allAds = () => [...st.ads.filter((a) => a && a.title && a.cat), ...DEMO_ADS];
-const adById = (id) => allAds().find((a) => a.id === id);
+const loadingBox = () => (st.dbErr ? errBox() : `<div class="empty"><div class="e">⏳</div></div>`);
+const errBox = () =>
+  `<div class="empty"><div class="e">⚠️</div><p>${t('load_err')}</p><button class="btn p" data-act="retry">↻ ${t('retry')}</button></div>`;
 const hueOf = (a) => (catById(a.cat).h + (hashH(a.id) % 30)) % 360;
 const priceHtml = (a, big) =>
   a.price
@@ -317,7 +493,7 @@ function adCard(a) {
   return `<a class="ad" href="#ad-${a.id}"><div style="position:relative">${photo(a)}
     <div class="ph-tags" style="position:absolute;top:8px;inset-inline-start:8px;display:flex;gap:4px;flex-wrap:wrap;max-width:75%">${a.sold ? `<span class="tag sold">${t('sold')}</span>` : ''}${stTag(a)}${saleTag(a)}</div>
     <button class="heart ${sv ? 'on' : ''}" data-act="save" data-id="${a.id}" aria-label="${t('saved')}">${sv ? '♥' : '♡'}</button>
-    ${a.demo ? `<span class="tag demo" style="position:absolute;bottom:8px;inset-inline-end:8px">${t('sample')}</span>` : ''}</div>
+    </div>
     <div class="bd"><div class="tt">${esc(a.title)}</div><div class="pr">${priceHtml(a)}</div><div class="mt">📍 ${esc(placeName(a))} · ${ago(a.at)}</div></div></a>`;
 }
 function toast(m, err) {
@@ -370,44 +546,28 @@ function renderChrome() {
 }
 
 /* ===== views ===== */
-function filtered() {
-  let a = allAds();
-  if (st.city !== 'all') a = a.filter((x) => x.city === st.city);
-  if (st.city !== 'all' && st.district) a = a.filter((x) => x.district === st.district);
-  if (st.cat !== 'all') a = a.filter((x) => x.cat === st.cat);
-  if (st.stype === 'wholesale') a = a.filter((x) => x.sale !== 'retail');
-  else if (st.stype !== 'all') a = a.filter((x) => x.stype === st.stype);
-  if (st.q.trim()) {
-    const ws = norm(st.q).split(' ');
-    a = a.filter((x) => {
-      const hay = norm(
-        [
-          x.title,
-          x.desc,
-          x.name,
-          ...Object.values(catById(x.cat).n),
-          ...Object.values((provById(x.city) || [0, {}])[1]),
-          x.district || '',
-        ].join(' '),
-      );
-      return ws.every((w) => hay.includes(w));
-    });
-  }
-  const S = {
-    new: (x, y) => y.at - x.at,
-    cheap: (x, y) => (x.price || 1e12) - (y.price || 1e12),
-    exp: (x, y) => (y.price || 0) - (x.price || 0),
-  };
-  return [...a].sort(S[st.sort] || S.new).sort((x, y) => (x.sold ? 1 : 0) - (y.sold ? 1 : 0));
-}
 function vHome() {
-  const ads = filtered();
+  const key = filterKey();
+  ensureList();
+  const ready = st.listKey === key;
+  const ads = ready ? st.list : [];
+  const noFilters = st.city === 'all' && st.cat === 'all' && st.stype === 'all' && !searchWords(st.q).length;
   const where =
     st.city === 'all'
       ? t('all_af')
       : st.district
         ? `${st.district}، ${cityName(st.city)}`
         : cityName(st.city);
+  const body =
+    st.listErr === key || st.dbErr
+      ? errBox()
+      : !ready
+        ? loadingBox()
+        : ads.length
+          ? `<div class="grid">${ads.map(adCard).join('')}</div>${st.more ? `<div class="row" style="justify-content:center;margin-top:16px"><button class="btn" data-act="more">${t('load_more')}</button></div>` : ''}`
+          : !noFilters
+            ? `<div class="empty"><div class="e">🔍</div><p>${t('no_results')}</p><a class="btn p" href="#post">＋ ${t('post')}</a></div>`
+            : `<div class="empty" style="padding:44px 18px"><div class="e">🎉</div><h2 style="margin:6px 0">${t('first_t')}</h2><p style="margin:0 0 16px">${t('first_d')}</p><a class="btn p" href="#post" style="height:52px;font-size:16px">＋ ${t('post')}</a></div>`;
   return `<section class="hero"><div class="wrap"><h1>${t('hero')}</h1><p>${t('hero_d')}</p>
     <form class="sbox" id="sform"><input id="sq" type="search" placeholder="${t('search_ph')}" value="${esc(st.q)}" autocomplete="off"><button>🔍 ${t('search')}</button></form></div></section>
   <div class="wrap">
@@ -426,29 +586,26 @@ function vHome() {
       .join('')}
       <span class="sp"></span><select id="sortsel" aria-label="sort">${['new', 'cheap', 'exp'].map((k) => `<option value="${k}" ${st.sort === k ? 'selected' : ''}>${t('sort_' + k)}</option>`).join('')}</select></div>
     ${st.city !== 'all' ? `<div class="drow"><label>📍 ${t('district')}:</label><select id="distsel">${distOptions(st.city, st.district, t('all_districts'))}</select></div>` : ''}
-    <div class="fh"><h2>${st.q.trim() ? `🔍 «${esc(st.q.trim())}»` : t('latest')}</h2><span class="faint" style="font-size:13px">${t('in_city', esc(where))} · ${t('results', num(ads.length))}</span></div>
-    ${!st.loaded ? `<div class="empty"><div class="e">⏳</div></div>` : ads.length ? `<div class="grid">${ads.map(adCard).join('')}</div>` : allAds().length ? `<div class="empty"><div class="e">🔍</div><p>${t('no_results')}</p><a class="btn p" href="#post">＋ ${t('post')}</a></div>` : `<div class="empty" style="padding:44px 18px"><div class="e">🎉</div><h2 style="margin:6px 0">${t('first_t')}</h2><p style="margin:0 0 16px">${t('first_d')}</p><a class="btn p" href="#post" style="height:52px;font-size:16px">＋ ${t('post')}</a></div>`}
+    <div class="fh"><h2>${st.q.trim() ? `🔍 «${esc(st.q.trim())}»` : t('latest')}</h2><span class="faint" style="font-size:13px">${t('in_city', esc(where))}${ready ? ` · ${t('results', num(st.total))}` : ''}</span></div>
+    ${body}
   </div>`;
 }
 function vAd(id) {
-  const a = adById(id);
+  const a = getAd(id);
+  if (a === undefined)
+    return `<div class="wrap">${st.err.has('ad:' + id) ? errBox() : loadingBox()}</div>`;
   if (!a)
     return `<div class="wrap"><div class="empty" style="margin-top:16px"><div class="e">🤷</div><p>${t('not_found')}</p><a class="btn" href="#home">${t('back_home')}</a></div></div>`;
   const c = catById(a.cat);
   const mine = a.owner && a.owner === st.uid;
-  const more = allAds()
-    .filter((x) => x.id !== a.id && x.phone === a.phone)
-    .slice(0, 4);
-  const sim = allAds()
-    .filter((x) => x.id !== a.id && x.cat === a.cat && x.phone !== a.phone)
-    .slice(0, 8);
+  const { more, sim } = getRel(a);
   const sv = st.me.saved.includes(a.id);
   const ph = latinDigits(a.phone);
   return `<div class="wrap"><div class="bc"><a href="#home">${t('home')}</a> › <a href="#home" data-act="cat" data-id="${c.id}">${L(c.n)}</a></div>
   <div class="adp">
     <div class="gal card" style="padding:10px"><div class="main" id="gmain">${photo(a)}</div><div class="ths" id="gths"></div></div>
     <div class="card pad info">
-      <div class="row" style="flex-wrap:wrap;gap:4px;margin-bottom:6px">${a.sold ? `<span class="tag sold">${t('sold')}</span>` : ''}${stTag(a)}${saleTag(a)}${a.demo ? `<span class="tag demo">${t('sample')}</span>` : ''}</div>
+      <div class="row" style="flex-wrap:wrap;gap:4px;margin-bottom:6px">${a.sold ? `<span class="tag sold">${t('sold')}</span>` : ''}${stTag(a)}${saleTag(a)}</div>
       <h1>${esc(a.title)}</h1>
       <div class="faint" style="font-size:13px">📍 ${esc(placeName(a))} · ${t('posted')} ${ago(a.at)}</div>
       <div class="price">${priceHtml(a, 1)}</div>
@@ -468,28 +625,32 @@ function vAd(id) {
   ${more.length ? `<div class="fh" style="margin-top:20px"><h2>${t('more_from')}</h2></div><div class="grid">${more.map(adCard).join('')}</div>` : ''}
   ${sim.length ? `<div class="fh" style="margin-top:20px"><h2>${t('similar')}</h2></div><div class="grid">${sim.map(adCard).join('')}</div>` : ''}</div>`;
 }
-async function loadGallery(a) {
-  if (!a || !a.nimg) return;
-  const imgs = await getImgs(a.id);
-  if (!imgs.length || cur() !== 'ad-' + a.id) return;
+function loadGallery(a) {
+  if (!a || !a.images.length || cur() !== 'ad-' + a.id) return;
+  const imgs = a.images;
   const main = document.getElementById('gmain');
   const ths = document.getElementById('gths');
   if (!main) return;
   const show = (i) => {
-    main.innerHTML = `<div class="ph" style="--h:${hueOf(a)}"><img src="${imgs[i]}" alt=""></div>`;
+    main.innerHTML = `<div class="ph" style="--h:${hueOf(a)}"><img src="${esc(imgs[i])}" alt=""></div>`;
     ths.querySelectorAll('button').forEach((b, j) => b.classList.toggle('on', j === i));
   };
   ths.innerHTML =
     imgs.length > 1
-      ? imgs.map((s, i) => `<button data-i="${i}"><img src="${s}" alt=""></button>`).join('')
+      ? imgs.map((s, i) => `<button data-i="${i}"><img src="${esc(s)}" alt=""></button>`).join('')
       : '';
   ths.querySelectorAll('button').forEach((b) => (b.onclick = () => show(+b.dataset.i)));
   show(0);
 }
 function vPost(editId) {
   if (!st.uid) return `<div class="wrap" style="max-width:680px">${loginPrompt(t('login_needed'))}</div>`;
-  const ed = editId ? st.ads.find((x) => x.id === editId && x.owner === st.uid) : null;
-  if (editId && !ed) return vAd(editId);
+  let ed = null;
+  if (editId) {
+    ed = getAd(editId);
+    if (ed === undefined)
+      return `<div class="wrap">${st.err.has('ad:' + editId) ? errBox() : loadingBox()}</div>`;
+    if (!ed || ed.owner !== st.uid) return vAd(editId);
+  }
   if (!st.draft || st.draft._for !== (editId || 'new')) {
     st.draft = {
       _for: editId || 'new',
@@ -558,7 +719,7 @@ function drawPhotos() {
     d.imgs
       .map(
         (im, i) =>
-          `<div class="th"><img src="${im}" alt=""><button type="button" data-act="rmimg" data-i="${i}">✕</button></div>`,
+          `<div class="th"><img src="${esc(im)}" alt=""><button type="button" data-act="rmimg" data-i="${i}">✕</button></div>`,
       )
       .join('') +
     (d.imgs.length < 3 ? `<label class="addp" for="pfile"><b>＋</b>${t('add_photo')}</label>` : '');
@@ -566,10 +727,14 @@ function drawPhotos() {
 function vMine() {
   if (!st.uid)
     return `<div class="wrap" style="max-width:780px"><div class="tabs"><a class="on" href="#mine">📋 ${t('my_ads')}</a><a href="#saved">♡ ${t('saved')}</a></div>${loginPrompt(t('login_needed_mine'))}</div>`;
-  const mine = st.ads.filter((a) => a.owner === st.uid).sort((a, b) => b.at - a.at);
+  const mine = getMine();
   return `<div class="wrap" style="max-width:780px"><div class="tabs"><a class="on" href="#mine">📋 ${t('my_ads')}</a><a href="#saved">♡ ${t('saved')}</a></div>
   ${
-    mine.length
+    !mine
+      ? st.err.has('mine:' + st.uid)
+        ? errBox()
+        : loadingBox()
+      : mine.length
       ? `<div class="card">${mine
           .map(
             (
@@ -583,9 +748,10 @@ function vMine() {
   }</div>`;
 }
 function vSaved() {
-  const ads = st.me.saved.map(adById).filter(Boolean);
+  const ads = getSaved();
+  const failed = st.err.has('saved:' + savedIds().join(','));
   return `<div class="wrap"><div class="tabs"><a href="#mine">📋 ${t('my_ads')}</a><a class="on" href="#saved">♡ ${t('saved')}</a></div>
-  ${ads.length ? `<div class="grid">${ads.map(adCard).join('')}</div>` : `<div class="empty"><div class="e">♡</div><p>${t('no_saved')}</p></div>`}</div>`;
+  ${!ads ? (failed ? errBox() : loadingBox()) : ads.length ? `<div class="grid">${ads.map(adCard).join('')}</div>` : `<div class="empty"><div class="e">♡</div><p>${t('no_saved')}</p></div>`}</div>`;
 }
 
 function vTerms() {
@@ -596,7 +762,13 @@ function vTerms() {
 }
 
 /* ===== router ===== */
-const cur = () => decodeURIComponent((location.hash || '#home').slice(1)) || 'home';
+const cur = () => {
+  let h = (location.hash || '#home').slice(1);
+  try {
+    h = decodeURIComponent(h);
+  } catch (e) {} // a broken address like "#%" just shows the home page
+  return h || 'home';
+};
 let last = '';
 function route(soft) {
   const r = cur();
@@ -610,12 +782,23 @@ function route(soft) {
   else if (r === 'saved') h = vSaved();
   else if (r === 'terms') h = vTerms();
   else h = vHome();
+  // keep what is being typed in the search box when the page is drawn again
+  const ae = document.activeElement;
+  const typing = ae && ae.id === 'sq' ? [ae.value, ae.selectionStart, ae.selectionEnd] : null;
   document.getElementById('app').innerHTML = h;
+  const sq = typing && document.getElementById('sq');
+  if (sq) {
+    sq.value = typing[0];
+    sq.focus({ preventScroll: true });
+    try {
+      sq.setSelectionRange(typing[1], typing[2]);
+    } catch (e) {}
+  }
   renderChrome();
   if (r !== last) window.scrollTo(0, 0);
   else if (soft) window.scrollTo(0, sy);
   last = r;
-  if (r.startsWith('ad-')) loadGallery(adById(r.slice(3)));
+  if (r.startsWith('ad-')) loadGallery(st.byId.get(r.slice(3)));
   if (document.getElementById('phs')) drawPhotos();
 }
 window.addEventListener('hashchange', () => route());
@@ -666,6 +849,13 @@ document.addEventListener('click', (e) => {
       b.textContent = on ? '♥' : '♡';
     });
     toast(on ? t('saved_ok') : t('unsaved'));
+    if (st.savedAds) {
+      if (on) st.savedAds = null;
+      else {
+        st.savedAds.ads = st.savedAds.ads.filter((x) => x.id !== a.dataset.id);
+        st.savedAds.key = savedIds().join(',');
+      }
+    }
     if (cur() === 'saved') route(true);
     return;
   }
@@ -708,8 +898,20 @@ document.addEventListener('click', (e) => {
     drawPhotos();
     return;
   }
+  if (act === 'retry') {
+    st.err.clear();
+    st.listErr = '';
+    if (st.dbErr) location.reload();
+    else route(true);
+    return;
+  }
+  if (act === 'more') {
+    loadMore(a);
+    return;
+  }
   if (act === 'sold') {
-    const ad = st.ads.find((x) => x.id === a.dataset.id && x.owner === st.uid);
+    const ad = st.byId.get(a.dataset.id);
+    if (ad && ad.owner !== st.uid) return;
     if (ad)
       setSold(ad, !ad.sold)
         .then(() => route(true))
@@ -770,12 +972,14 @@ document.addEventListener('change', (e) => {
     const room = 3 - st.draft.imgs.length;
     if (files.length > room) toast(t('max3'));
     files.slice(0, Math.max(0, room)).forEach((f) =>
-      resize(f, 900, 60000).then((u) => {
-        if (st.draft.imgs.length < 3) {
-          st.draft.imgs.push(u);
-          drawPhotos();
-        }
-      }),
+      resize(f, 900, 60000)
+        .then((u) => {
+          if (st.draft && st.draft.imgs.length < 3) {
+            st.draft.imgs.push(u);
+            drawPhotos();
+          }
+        })
+        .catch(() => toast(t('photo_err'), 1)),
     );
     return;
   }
@@ -851,7 +1055,8 @@ document.addEventListener('submit', async (e) => {
       return;
     }
     const editId = cur().startsWith('edit-') ? cur().slice(5) : null;
-    const ex = editId && st.ads.find((x) => x.id === editId && x.owner === st.uid);
+    const known = editId && st.byId.get(editId);
+    const ex = known && known.owner === st.uid ? known : null;
     const d = st.draft;
     const btn = f.querySelector('button.p');
     btn.disabled = true;
@@ -891,9 +1096,10 @@ document.addEventListener('submit', async (e) => {
       toast(ex ? t('updated') : t('published'));
       location.hash = '#ad-' + id;
     } catch (err) {
-      console.error(err);
-      toast(t('save_err'), 1);
       btn.disabled = false;
+      if (err && err.message === LOGIN_REQUIRED) return; // the login window is already open
+      console.error(err);
+      toast(/ad_limit/.test((err && err.message) || '') ? t('limit_err') : t('save_err'), 1);
     }
   }
 });

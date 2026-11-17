@@ -13,10 +13,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const PROJECT_REF = 'dqhevzzuancurvsokpqc';
-const SUPABASE_URL = `https://${PROJECT_REF}.supabase.co`;
-const BUCKET = 'ad-photos';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// The project address comes from the site's own settings (js/config.js), so it is set in one place.
+const CONFIG = await fs.readFile(path.join(ROOT, 'js', 'config.js'), 'utf8');
+const SUPABASE_URL = (CONFIG.match(/SUPABASE_URL\s*=\s*'([^']+)'/) || [])[1];
+const BUCKET = (CONFIG.match(/BUCKET\s*=\s*'([^']+)'/) || [])[1];
+if (!SUPABASE_URL || !BUCKET) throw new Error('Could not read SUPABASE_URL / BUCKET from js/config.js');
+const PROJECT_REF = new URL(SUPABASE_URL).hostname.split('.')[0];
 
 /** Run a read-only SQL query through the Supabase CLI and return the rows. */
 function query(sql) {
@@ -49,7 +52,13 @@ try {
 
   const ads = query('select * from public.ads order by created_at');
   await fs.writeFile(path.join(dir, 'ads.json'), JSON.stringify(ads, null, 2), { mode: 0o600 });
-  const cols = ads.length ? Object.keys(ads[0]) : [];
+  // Columns the database computes itself (e.g. "search") cannot be inserted, so ads.sql leaves them out.
+  const generated = new Set(
+    query(
+      "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'ads' and is_generated = 'ALWAYS'"
+    ).map((r) => r.column_name)
+  );
+  const cols = ads.length ? Object.keys(ads[0]).filter((c) => !generated.has(c)) : [];
   const sql = [
     `-- Maamila ads backup, ${new Date().toISOString()}. Replay into a database set up with supabase/setup.sql`,
     '-- (the accounts referenced by "owner" must exist first).',

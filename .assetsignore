@@ -8,3 +8,5 @@ node_modules
 worker
 tools
 backups
+.wrangler
+.claude

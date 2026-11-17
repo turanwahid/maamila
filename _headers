@@ -1,7 +1,8 @@
 # Security headers for maamila.com (Cloudflare reads this file; it is not published).
-# Allowed sources: our own files, the Supabase library (jsdelivr), Google Fonts, and our Supabase project.
+# Allowed sources: our own files, the one pinned Supabase library file (jsdelivr; same version as index.html),
+# Google Fonts, and our Supabase project.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://dqhevzzuancurvsokpqc.supabase.co; connect-src 'self' https://dqhevzzuancurvsokpqc.supabase.co wss://dqhevzzuancurvsokpqc.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://dqhevzzuancurvsokpqc.supabase.co; connect-src 'self' https://dqhevzzuancurvsokpqc.supabase.co wss://dqhevzzuancurvsokpqc.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY

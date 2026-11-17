@@ -535,5 +535,3 @@ const distOptions = (prov, sel, allLabel) =>
     .join('');
 const STYPE = { factory: ['🏭', 'f'], shop: ['🏪', 's'], person: ['👤', 'p'] };
 
-/* demo ads — written the way real sellers would post, in their own language */
-const DEMO_ADS = [];

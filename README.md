@@ -43,15 +43,26 @@ with the ads (`ads.json`, `ads.sql`), the accounts (`accounts.json`), every phot
 The folder holds personal data: keep it private (it is ignored by Git and never published).
 
 ## Setup
-1. Create a Supabase project and run `supabase/setup.sql` in the SQL editor.
+1. Create a Supabase project and run `supabase/setup.sql` in the SQL editor. The file is safe to run again:
+   after it changes, run it again on the live project **before** pushing the site code that needs it.
 2. In Supabase → Authentication: enable email sign-up, set **Site URL** to your domain and add it to **Redirect URLs**. Users log in with email + password; only logged-in users can post.
    **Confirm email is turned off** (since 17 Nov 2026): Supabase's built-in email sender barely delivers to normal
    users on the free plan, so nobody could finish signing up. To turn it back on, first connect your own email
    service (Authentication → Emails → SMTP settings, e.g. Brevo or Resend); password-reset emails need it too.
-3. Put your project URL and publishable key in `js/config.js`.
+3. Put your project URL and publishable key in `js/config.js`, and the same values in `wrangler.jsonc` (vars) and
+   `_headers` (the Content-Security-Policy). `tools/backup.mjs` reads them from `js/config.js`.
 4. Deploy the whole folder to any static host (Cloudflare Workers/Pages, Netlify, GitHub Pages).
 
 The publishable key is meant to be public; security is enforced by row-level security policies in `setup.sql`. Never commit the Supabase **secret** key.
 
-## Moderation
+## Moderation and limits
 Remove an ad in Supabase → Table Editor → `ads` → delete the row.
+
+Built-in limits (in `supabase/setup.sql`): each account can post at most 30 new ads per day and store at most
+400 photo files; the post date is always set by the server. Photo addresses must point at our own photo storage.
+Also keep the sign-up rate limits in Supabase → Authentication → Rate Limits low, since sign-ups need no email confirmation.
+
+## Supabase library
+`index.html` loads one pinned version of supabase-js with an `integrity` hash, and `_headers` allows only that file.
+To upgrade, change the version in both files and replace the hash
+(`curl -s <file url> | openssl dgst -sha384 -binary | openssl base64 -A`).
