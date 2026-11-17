@@ -1,0 +1,5 @@
+# Backups contain personal data (accounts, phone numbers) — never commit
+backups/
+node_modules/
+.wrangler/
+supabase/.temp/

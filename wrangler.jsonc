@@ -1,8 +1,18 @@
 {
-  // Cloudflare deploy settings: serves this folder as a static site
+  // Cloudflare deploy settings: serves this folder as a static site, plus a daily keep-awake check
+  // (worker/index.js). Pushing to main deploys automatically (Workers Builds).
   "name": "muddy-snow-564c",
+  "main": "./worker/index.js",
   "compatibility_date": "2026-11-01",
   "assets": {
-    "directory": "."
-  }
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    // Same values as js/config.js (the publishable key is public by design).
+    "SUPABASE_URL": "https://dqhevzzuancurvsokpqc.supabase.co",
+    "SUPABASE_KEY": "sb_publishable_iJohVESPKMtyA8egiYkJmg_DyZYEaDJ"
+  },
+  // Every day at 06:00 UTC.
+  "triggers": { "crons": ["0 6 * * *"] }
 }
