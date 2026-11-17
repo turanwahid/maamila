@@ -50,6 +50,23 @@ create index if not exists ads_phone_idx on public.ads (phone);
 create index if not exists ads_cat_idx on public.ads (cat, created_at desc);
 create index if not exists ads_search_idx on public.ads using gin (search extensions.gin_trgm_ops);
 
+-- Site admins: accounts listed here can mark any ad as sold or delete it (moderation).
+-- Add an admin in the SQL editor:
+--   insert into public.admins (user_id) select id from auth.users where email = 'someone@example.com';
+create table if not exists public.admins (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  added_at timestamptz not null default now()
+);
+alter table public.admins enable row level security;
+drop policy if exists "admins see themselves" on public.admins;
+create policy "admins see themselves" on public.admins for select to authenticated using (user_id = auth.uid());
+create or replace function public.is_admin() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.admins where user_id = auth.uid())
+$$;
+revoke execute on function public.is_admin() from public, anon;
+grant execute on function public.is_admin() to authenticated;
+
 -- For posts from the website: the post date is always set by the server (nobody can pin an ad to the top
 -- with a future date), and each account can post at most 30 new ads per day (spam limit).
 -- Restores run in the SQL editor (not as a website user) and keep their original dates.
@@ -67,6 +84,7 @@ begin
     end if;
   else
     new.created_at := old.created_at;
+    new.owner := old.owner; -- an ad always stays with the account that posted it (also when an admin edits it)
   end if;
   return new;
 end $$;
@@ -82,10 +100,13 @@ drop policy if exists "owner can delete" on public.ads;
 create policy "ads are public" on public.ads for select using (true);
 create policy "owner can insert" on public.ads for insert to authenticated
   with check (owner = auth.uid() and coalesce((auth.jwt()->>'is_anonymous')::boolean, false) = false);
-create policy "owner can update" on public.ads for update to authenticated using (owner = auth.uid()) with check (owner = auth.uid());
-create policy "owner can delete" on public.ads for delete to authenticated using (owner = auth.uid());
+create policy "owner can update" on public.ads for update to authenticated
+  using (owner = auth.uid() or public.is_admin()) with check (owner = auth.uid() or public.is_admin());
+create policy "owner can delete" on public.ads for delete to authenticated
+  using (owner = auth.uid() or public.is_admin());
 
--- photo storage (public read, each user writes only in their own folder, at most 400 files per account)
+-- photo storage (public read, each user writes only in their own folder, at most 400 files per account;
+-- admins can also list and delete photos, to clean up after removing an ad)
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('ad-photos', 'ad-photos', true, 1048576, array['image/jpeg','image/png','image/webp'])
 on conflict (id) do nothing;
@@ -106,6 +127,6 @@ create policy "maamila upload own" on storage.objects for insert to authenticate
 create policy "maamila update own" on storage.objects for update to authenticated
   using (bucket_id = 'ad-photos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "maamila delete own" on storage.objects for delete to authenticated
-  using (bucket_id = 'ad-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+  using (bucket_id = 'ad-photos' and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin()));
 create policy "maamila list own" on storage.objects for select to authenticated
-  using (bucket_id = 'ad-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+  using (bucket_id = 'ad-photos' and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin()));

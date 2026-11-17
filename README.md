@@ -58,7 +58,14 @@ The folder holds personal data: keep it private (it is ignored by Git and never 
 The publishable key is meant to be public; security is enforced by row-level security policies in `setup.sql`. Never commit the Supabase **secret** key.
 
 ## Moderation and limits
-Remove an ad in Supabase → Table Editor → `ads` → delete the row.
+Site admins see a **🛡 Admin** link (header and account menu) with the newest 200 ads, and admin buttons on every
+ad page: mark as sold or delete (the ad's photos are removed too). The database enforces this: only accounts in the
+`admins` table can change other people's ads. Add an admin in the Supabase SQL editor:
+```sql
+insert into public.admins (user_id) select id from auth.users where email = 'someone@example.com';
+```
+Remove one with `delete from public.admins where user_id = (select id from auth.users where email = '…');`.
+You can also remove an ad in Supabase → Table Editor → `ads` → delete the row.
 
 Built-in limits (in `supabase/setup.sql`): each account can post at most 30 new ads per day and store at most
 400 photo files; the post date is always set by the server. Photo addresses must point at our own photo storage.

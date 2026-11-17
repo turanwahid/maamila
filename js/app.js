@@ -19,6 +19,8 @@ const st = {
   sb: null,
   dbErr: false,
   uid: null,
+  isAdmin: false, // true for site admins (public.admins); null while being checked
+  adminAds: null, // newest ads for the admin page
   // home list: one page at a time from the server, for the current filters
   list: [],
   total: 0,
@@ -96,6 +98,7 @@ async function initDb() {
     setTimeout(() => {
       if (ev === 'PASSWORD_RECOVERY') openAuth('newpw');
       if (st.uid === before) return;
+      checkAdmin();
       renderChrome();
       if (!document.getElementById('postform') && !document.getElementById('authform')) route(true);
     }, 0);
@@ -104,10 +107,27 @@ async function initDb() {
     const { data } = await st.sb.auth.getSession();
     setUser(data && data.session ? data.session.user : null);
   } catch (e) {}
+  checkAdmin();
   route(true);
   setInterval(() => {
     if (cur() === 'home' && !document.hidden && st.listKey === filterKey()) loadList(true);
   }, 60000);
+}
+
+/** Asks the database whether the logged-in account is a site admin (it also enforces this itself). */
+let adminFor;
+async function checkAdmin() {
+  const uid = st.uid;
+  if (adminFor === uid) return;
+  adminFor = uid;
+  st.adminAds = null;
+  st.isAdmin = uid ? null : false;
+  if (!uid || !st.sb) return;
+  const { data, error } = await st.sb.rpc('is_admin');
+  if (st.uid !== uid) return;
+  st.isAdmin = !error && data === true;
+  renderChrome();
+  soft();
 }
 
 /* ===== loading ads ===== */
@@ -229,6 +249,17 @@ function getRel(a) {
   });
   return { more: [], sim: [] };
 }
+function getAdminAds() {
+  if (st.adminAds) return st.adminAds;
+  fetchOnce('admin', async () => {
+    const { data, error } = await st.sb.from('ads').select(LIST_COLS)
+      .order('created_at', { ascending: false }).limit(200);
+    if (error) throw error;
+    st.adminAds = data.map(fromRow);
+  });
+}
+/** Any copy of an ad kept in memory. */
+const findAd = (id) => st.byId.get(id) || adLists().flat().find((x) => x.id === id);
 function getMine() {
   if (st.mine && st.mine.uid === st.uid) return st.mine.ads;
   const uid = st.uid;
@@ -256,7 +287,7 @@ function getSaved() {
 }
 /** Every copy of an ad that is kept in memory (lists, single ads). */
 const adLists = () =>
-  [st.list, st.mine && st.mine.ads, st.savedAds && st.savedAds.ads, ...[...st.rel.values()].flatMap((r) => [r.more, r.sim])].filter(Boolean);
+  [st.list, st.mine && st.mine.ads, st.savedAds && st.savedAds.ads, st.adminAds, ...[...st.rel.values()].flatMap((r) => [r.more, r.sim])].filter(Boolean);
 function patchAd(id, fields) {
   for (const l of adLists()) for (const x of l) if (x.id === id) Object.assign(x, fields);
   const b = st.byId.get(id);
@@ -359,7 +390,7 @@ async function submitAuth(f) {
 }
 function openAccount() {
   modal(`<h3>👤 ${t('account')}</h3><p class="muted" dir="ltr" style="text-align:start;margin:0 0 14px">${esc(st.email)}</p>
-    <div class="clist"><button data-act="go" data-h="mine">📋 ${t('my_ads')}</button><button data-act="go" data-h="saved">♡ ${t('saved')}</button><button data-act="go" data-h="post">＋ ${t('post')}</button></div>
+    <div class="clist"><button data-act="go" data-h="mine">📋 ${t('my_ads')}</button><button data-act="go" data-h="saved">♡ ${t('saved')}</button><button data-act="go" data-h="post">＋ ${t('post')}</button>${st.isAdmin ? `<button data-act="go" data-h="admin">🛡 ${t('admin')}</button>` : ''}</div>
     <button class="btn d blk" style="margin-top:14px" data-act="logout">↩ ${t('logout')}</button>`);
 }
 function loginPrompt(msg) {
@@ -440,21 +471,22 @@ async function cleanupPhotos(uid, id, keep) {
   } catch (e) {}
 }
 async function setSold(ad, sold) {
-  const { error } = await st.sb.from('ads').update({ sold }).eq('id', ad.id);
-  if (error) {
+  const { data, error } = await st.sb.from('ads').update({ sold }).eq('id', ad.id).select('id');
+  if (error || !data.length) {
     toast(t('save_err'), 1);
     throw error;
   }
   patchAd(ad.id, { sold });
 }
 async function delAd(id) {
-  const { error } = await st.sb.from('ads').delete().eq('id', id);
-  if (error) {
+  const owner = (findAd(id) || {}).owner;
+  const { data, error } = await st.sb.from('ads').delete().eq('id', id).select('id');
+  if (error || !data.length) {
     toast(t('save_err'), 1);
-    throw error;
+    throw error || new Error('not allowed');
   }
   removeAd(id);
-  if (st.uid) cleanupPhotos(st.uid, id, []);
+  if (owner) cleanupPhotos(owner, id, []); // photos live in the owner's folder (an admin may delete others' ads)
 }
 /** Draws the page again after new data arrived (not while a post form is open, so nothing typed is lost). */
 let sT = null;
@@ -485,6 +517,9 @@ const saleTag = (a) =>
     : a.sale === 'both'
       ? `<span class="tag w">${t('both')}</span>`
       : '';
+const soldBtn = (a) =>
+  `<button class="btn sm" data-act="sold" data-id="${a.id}">${a.sold ? '↺ ' + t('relist') : '✓ ' + t('mark_sold')}</button>`;
+const delBtn = (a) => `<button class="btn sm d" data-act="del" data-id="${a.id}">${t('del')}</button>`;
 function photo(a, extra = '') {
   return `<div class="ph" style="--h:${hueOf(a)}" ${extra}><span>${a.icon || catById(a.cat).i}</span>${a.thumb ? `<img src="${esc(a.thumb)}" alt="" loading="lazy">` : ''}</div>`;
 }
@@ -526,7 +561,7 @@ function renderChrome() {
   document.getElementById('hdr').innerHTML = `<a class="logo" href="#home">${LOGO}${t('brand')}</a>
     <button class="pill cityp" data-act="city">📍 <span class="tx">${esc(cityLabel)}</span> ▾</button>
     <span class="sp"></span>
-    <nav class="dnav"><a class="pill" href="#saved">♡ ${t('saved')}</a><a class="pill" href="#mine">📋 ${t('my_ads')}</a><a class="pill postbtn" href="#post">＋ ${t('post')}</a></nav>
+    <nav class="dnav"><a class="pill" href="#saved">♡ ${t('saved')}</a><a class="pill" href="#mine">📋 ${t('my_ads')}</a>${st.isAdmin ? `<a class="pill" href="#admin">🛡 ${t('admin')}</a>` : ''}<a class="pill postbtn" href="#post">＋ ${t('post')}</a></nav>
     ${st.uid ? `<button class="pill acc" data-act="account" title="${esc(st.email)}">👤 <span class="tx">${t('account')}</span></button>` : `<button class="pill acc" data-act="auth" data-m="login">🔑 <span class="tx">${t('login')}</span></button>`}
     <label class="pill lpill"><span class="gl">🌐</span> <select id="langsel" aria-label="Language">${LANGS.map((l) => `<option value="${l[0]}" ${l[0] === LANG ? 'selected' : ''}>${l[1]}</option>`).join('')}</select></label>`;
   document.getElementById('bnav').innerHTML = [
@@ -619,7 +654,13 @@ function vAd(id) {
         <button class="heart ${sv ? 'on' : ''}" style="position:static" data-act="save" data-id="${a.id}">${sv ? '♥' : '♡'}</button></div>
       <dl class="kv"><dt>${t('category')}</dt><dd>${c.i} ${L(c.n)}</dd><dt>${t('sale_type')}</dt><dd>${t(a.sale || 'retail')}</dd><dt>${t('province')}</dt><dd>${esc(cityName(a.city))}</dd>${a.district ? `<dt>${t('district')}</dt><dd>${esc(a.district)}</dd>` : ''}</dl>
       <h3 style="margin:14px 0 4px">${t('desc')}</h3><p style="white-space:pre-line;margin:0">${esc(a.desc) || '—'}</p>
-      ${mine ? `<div class="row" style="margin-top:16px;flex-wrap:wrap"><a class="btn sm" href="#edit-${a.id}">✎ ${t('edit')}</a><button class="btn sm" data-act="sold" data-id="${a.id}">${a.sold ? '↺ ' + t('relist') : '✓ ' + t('mark_sold')}</button><button class="btn sm d" data-act="del" data-id="${a.id}">${t('del')}</button></div>` : ''}
+      ${
+        mine
+          ? `<div class="row" style="margin-top:16px;flex-wrap:wrap"><a class="btn sm" href="#edit-${a.id}">✎ ${t('edit')}</a>${soldBtn(a)}${delBtn(a)}</div>`
+          : st.isAdmin
+            ? `<div class="row" style="margin-top:16px;flex-wrap:wrap;align-items:center"><span class="faint" style="font-size:12.5px">🛡 ${t('admin')}:</span>${soldBtn(a)}${delBtn(a)}</div>`
+            : ''
+      }
       <div class="safe">${t('safety')}</div>
     </div></div>
   ${more.length ? `<div class="fh" style="margin-top:20px"><h2>${t('more_from')}</h2></div><div class="grid">${more.map(adCard).join('')}</div>` : ''}
@@ -754,6 +795,27 @@ function vSaved() {
   ${!ads ? (failed ? errBox() : loadingBox()) : ads.length ? `<div class="grid">${ads.map(adCard).join('')}</div>` : `<div class="empty"><div class="e">♡</div><p>${t('no_saved')}</p></div>`}</div>`;
 }
 
+function vAdmin() {
+  const wrap = (b) =>
+    `<div class="wrap" style="max-width:860px"><h1 style="font-size:21px;margin:16px 0 4px">🛡 ${t('admin')}</h1>${b}</div>`;
+  if (!st.uid) return wrap(loginPrompt(t('admin_only')));
+  if (st.isAdmin === null) return wrap(loadingBox());
+  if (!st.isAdmin) return wrap(`<div class="empty"><div class="e">🔒</div><p>${t('admin_only')}</p></div>`);
+  const ads = getAdminAds();
+  if (!ads) return wrap(st.err.has('admin') ? errBox() : loadingBox());
+  return wrap(`<p class="faint" style="font-size:13px;margin:0 0 12px">${t('admin_d')}</p>${
+    ads.length
+      ? `<div class="card">${ads
+          .map(
+            (a) => `<div class="mine"><a href="#ad-${a.id}">${photo(a)}</a><div style="flex:1;min-width:0"><a href="#ad-${a.id}"><b>${esc(a.title)}</b></a>
+    <div class="faint" style="font-size:12px">👤 ${esc(a.name)} · <span dir="ltr">${esc(latinDigits(a.phone))}</span> · 📍 ${esc(placeName(a))} · ${ago(a.at)} ${a.sold ? `<span class="tag sold">${t('sold')}</span>` : ''}</div>
+    <div class="row" style="margin-top:6px;flex-wrap:wrap;gap:6px">${soldBtn(a)}${delBtn(a)}</div></div></div>`,
+          )
+          .join('')}</div>`
+      : `<div class="empty"><div class="e">📋</div><p>${t('no_results')}</p></div>`
+  }`);
+}
+
 function vTerms() {
   const d = TERMS[LANG];
   return `<div class="wrap" style="max-width:780px"><div class="card pad terms" style="margin-top:16px"><h1 style="font-size:22px;margin:0 0 4px">📜 ${d.title}</h1><div class="faint" style="font-size:13px;margin-bottom:12px">${d.upd}</div><p>${d.intro}</p>
@@ -781,6 +843,7 @@ function route(soft) {
   else if (r === 'mine') h = vMine();
   else if (r === 'saved') h = vSaved();
   else if (r === 'terms') h = vTerms();
+  else if (r === 'admin') h = vAdmin();
   else h = vHome();
   // keep what is being typed in the search box when the page is drawn again
   const ae = document.activeElement;
@@ -830,6 +893,7 @@ document.addEventListener('click', (e) => {
     modal('');
     st.sb.auth.signOut().then(() => {
       setUser(null);
+      checkAdmin();
       toast(t('logged_out'));
       renderChrome();
       route(true);
@@ -910,8 +974,8 @@ document.addEventListener('click', (e) => {
     return;
   }
   if (act === 'sold') {
-    const ad = st.byId.get(a.dataset.id);
-    if (ad && ad.owner !== st.uid) return;
+    const ad = findAd(a.dataset.id);
+    if (ad && ad.owner !== st.uid && !st.isAdmin) return;
     if (ad)
       setSold(ad, !ad.sold)
         .then(() => route(true))
@@ -920,6 +984,7 @@ document.addEventListener('click', (e) => {
   }
   if (act === 'del') {
     const id = a.dataset.id;
+    const own = (findAd(id) || {}).owner === st.uid;
     modal(
       `<h3>${t('confirm_del')}</h3><div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-act="mclose">${t('cancel')}</button><button class="btn p" id="mok" style="background:var(--red);border-color:var(--red)">${t('del')}</button></div>`,
     );
@@ -928,7 +993,7 @@ document.addEventListener('click', (e) => {
       try {
         await delAd(id);
         toast(t('deleted'));
-        if (cur().startsWith('ad-')) location.hash = '#mine';
+        if (cur().startsWith('ad-')) location.hash = own ? '#mine' : '#admin';
         else route(true);
       } catch (_) {}
     };
