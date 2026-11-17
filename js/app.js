@@ -81,6 +81,27 @@ const fromRow = (r) => {
 function saveMe() {
   LS.set('me', st.me);
 }
+// What the address said when the page opened: after an email link (password reset, sign-up confirmation)
+// Supabase sends the visitor back with the result here, e.g. #access_token=…&type=recovery or #error_code=otp_expired.
+const START_HASH = new URLSearchParams(location.hash.replace(/^#/, ''));
+/** Reacts to the result of an email link, then removes it from the address bar. */
+function handleEmailLink() {
+  const err = START_HASH.get('error_code') || START_HASH.get('error');
+  const fromLink = err || START_HASH.has('access_token');
+  if (!fromLink) return;
+  history.replaceState(null, '', location.pathname + location.search); // tokens should not stay in the address
+  if (err) {
+    toast(t('link_expired'), 1);
+    openAuth(START_HASH.get('type') === 'signup' ? 'login' : 'forgot');
+  } else if (START_HASH.get('type') === 'recovery') {
+    if (st.uid) openAuth('newpw');
+    else {
+      toast(t('link_expired'), 1); // the link could not log the visitor in
+      openAuth('forgot');
+    }
+  }
+  route(true);
+}
 async function initDb() {
   if (!window.supabase) {
     st.dbErr = true;
@@ -109,6 +130,7 @@ async function initDb() {
   } catch (e) {}
   checkAdmin();
   route(true);
+  handleEmailLink();
   setInterval(() => {
     if (cur() === 'home' && !document.hidden && st.listKey === filterKey()) loadList(true);
   }, 60000);
@@ -536,7 +558,7 @@ function toast(m, err) {
   d.className = 'toast' + (err ? ' err' : '');
   d.textContent = m;
   document.getElementById('toasts').appendChild(d);
-  setTimeout(() => d.remove(), 2800);
+  setTimeout(() => d.remove(), Math.max(2800, String(m).length * 70)); // longer messages stay longer
 }
 function modal(h) {
   document.getElementById('modal').innerHTML = h
