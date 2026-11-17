@@ -472,6 +472,8 @@ header {
 }
 .fld input[type='text'],
 .fld input[type='tel'],
+.fld input[type='email'],
+.fld input[type='password'],
 .fld input:not([type]),
 .fld select,
 .fld textarea {

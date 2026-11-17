@@ -51,6 +51,10 @@ The folder holds personal data: keep it private (it is ignored by Git and never 
    In Brevo → Security → Authorized IPs, blocking for **SMTP keys must stay deactivated**, or Supabase's emails fail.
    A Brevo SMTP key stops working after 90 days without any email sent; then generate a new one and paste it in Supabase.
    Mail to info@maamila.com is forwarded by Cloudflare Email Routing.
+   **Password reset uses a code, not a link:** Brevo rewrites every link in its emails into a click-tracking link
+   (sendibt3.com) that some browsers, ad blockers and VPNs block, and Brevo has no switch to turn that off. So the
+   Supabase "Reset password" template shows `{{ .Token }}` (copy in `supabase/email-reset-password.html`) and the site
+   asks for that code plus the new password.
 3. Put your project URL and publishable key in `js/config.js`, and the same values in `wrangler.jsonc` (vars) and
    `_headers` (the Content-Security-Policy). `tools/backup.mjs` reads them from `js/config.js`.
 4. Deploy the whole folder to any static host (Cloudflare Workers/Pages, Netlify, GitHub Pages).

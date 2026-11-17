@@ -333,7 +333,7 @@ async function ensureUser() {
   openAuth('login');
   throw new Error(LOGIN_REQUIRED);
 }
-function openAuth(mode) {
+function openAuth(mode, email = '') {
   const f = (name, type, ph, extra = '') =>
     `<div class="fld"><label>${t(name)}</label><input name="${name}" type="${type}" dir="ltr" autocomplete="${extra}" style="text-align:start" placeholder="${ph}"></div>`;
   const body = {
@@ -344,24 +344,34 @@ function openAuth(mode) {
       <button class="btn p blk">${t('signup')}</button>
       <p class="faint" style="font-size:12.5px;text-align:center;margin:10px 0 0">${t('agree', `<a href="#terms" data-act="mclose" style="color:var(--blue)">${t('terms')}</a>`)}</p>
       <div class="authlinks"><span>${t('have_account')} <a href="#" data-act="auth" data-m="login">${t('login')}</a></span></div>`,
-    forgot: `${f('email', 'email', 'name@example.com', 'email')}<button class="btn p blk">${t('send_link')}</button>
+    forgot: `${f('email', 'email', 'name@example.com', 'email')}<button class="btn p blk">${t('send_code')}</button>
       <div class="authlinks"><a href="#" data-act="auth" data-m="login">${t('login')}</a></div>`,
+    // password reset with the code from the email (links in emails pass through Brevo's click tracking,
+    // which some browsers, ad blockers and VPNs block)
+    code: `<p class="muted" dir="ltr" style="text-align:center;margin:0 0 12px">${esc(email)}</p>
+      <div class="fld"><label>${t('code_label')}</label><input name="code" inputmode="numeric" autocomplete="one-time-code" dir="ltr" maxlength="12" style="text-align:center;letter-spacing:6px;font-size:20px" placeholder="••••••"></div>
+      ${f('password', 'password', '••••••', 'new-password').replace(t('password'), t('new_password'))}
+      <button class="btn p blk">${t('save')}</button>
+      <div class="authlinks"><a href="#" data-act="auth" data-m="forgot">${t('resend')}</a></div>`,
     newpw: `${f('password', 'password', '••••••', 'new-password').replace(t('password'), t('new_password'))}<button class="btn p blk">${t('save')}</button>`,
   }[mode];
   const title = {
     login: t('login_t'),
     signup: t('signup_t'),
     forgot: t('forgot_t'),
+    code: t('forgot_t'),
     newpw: t('new_password'),
   }[mode];
-  modal(`<h3>🔑 ${title}</h3><form id="authform" data-mode="${mode}" novalidate>${body}</form>`);
+  modal(`<h3>🔑 ${title}</h3><form id="authform" data-mode="${mode}" data-email="${esc(email)}" novalidate>${body}</form>`);
   setTimeout(() => document.querySelector('#authform input')?.focus(), 50);
 }
 async function submitAuth(f) {
   const mode = f.dataset.mode;
-  const email = (f.elements.email?.value || '').trim().toLowerCase();
+  const email = (f.elements.email ? f.elements.email.value : f.dataset.email || '').trim().toLowerCase();
   const pw = f.elements.password?.value || '';
+  const code = latinDigits(f.elements.code?.value || '').replace(/\D/g, '');
   if (mode !== 'newpw' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast(t('bad_email'), 1);
+  if (mode === 'code' && code.length < 6) return toast(t('code_bad'), 1);
   if (mode !== 'forgot' && pw.length < 6) return toast(t('pw_short'), 1);
   const btn = f.querySelector('button.p');
   btn.disabled = true;
@@ -385,8 +395,19 @@ async function submitAuth(f) {
     } else if (mode === 'forgot') {
       const { error } = await st.sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin });
       if (error) throw error;
+      openAuth('code', email);
+      toast(t('code_sent'));
+      return;
+    } else if (mode === 'code') {
+      const { error } = await st.sb.auth.verifyOtp({ email, token: code, type: 'recovery' });
+      if (error) throw { code: 'otp_bad' };
+      const { error: e2 } = await st.sb.auth.updateUser({ password: pw });
+      if (e2) {
+        openAuth('newpw'); // the code was right and the visitor is logged in; only the new password failed
+        throw e2;
+      }
       modal('');
-      toast(t('reset_sent'));
+      toast(t('pw_changed'));
     } else if (mode === 'newpw') {
       const { error } = await st.sb.auth.updateUser({ password: pw });
       if (error) throw error;
@@ -398,7 +419,11 @@ async function submitAuth(f) {
   } catch (e) {
     const code = (e && (e.code || e.message)) || '';
     toast(
-      /already|exists|registered/i.test(code)
+      code === 'otp_bad'
+        ? t('code_bad')
+        : /same_password|different from the old/i.test(code)
+          ? t('pw_same')
+          : /already|exists|registered/i.test(code)
         ? t('email_taken')
         : /invalid|credentials/i.test(code)
           ? t('auth_err')
