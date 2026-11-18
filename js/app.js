@@ -647,7 +647,8 @@ function renderChrome() {
     .join('');
   document.getElementById('ftr').innerHTML =
     `<div class="wrap"><div class="row" style="gap:8px;margin-bottom:6px">${LOGO.replace('<svg', '<svg style="width:26px;height:26px"')}<b style="color:var(--blue)">${t('brand')}</b><span class="sp"></span><span dir="ltr">maamila.com</span></div>
-    <div>${t('about')}</div><div class="note"><a href="#terms" style="color:var(--blue);font-weight:700">📜 ${t('terms')}</a> · <a href="#post">＋ ${t('post')}</a> · © ${Number(2026).toLocaleString('fa-AF', { useGrouping: false })} ${t('brand')}</div></div>`;
+    <div>${t('about')}</div>
+    <div style="margin:10px 0 4px">📧 ${t('contact_us')}: <a href="mailto:info@maamila.com" dir="ltr" style="color:var(--blue);font-weight:700">info@maamila.com</a></div><div class="note"><a href="#terms" style="color:var(--blue);font-weight:700">📜 ${t('terms')}</a> · <a href="#post">＋ ${t('post')}</a> · © ${Number(2026).toLocaleString('fa-AF', { useGrouping: false })} ${t('brand')}</div></div>`;
 }
 
 /* ===== views ===== */
