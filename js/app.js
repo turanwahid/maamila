@@ -627,7 +627,7 @@ function renderChrome() {
   document.title = `${t('brand')} — ${t('hero')}`;
   const r = cur();
   const cityLabel = st.city === 'all' ? t('all_af') : cityName(st.city);
-  document.getElementById('hdr').innerHTML = `<a class="logo" href="#home">${LOGO}${t('brand')}</a>
+  document.getElementById('hdr').innerHTML = `<a class="logo" href="#home" data-act="home">${LOGO}${t('brand')}</a>
     <button class="pill cityp" data-act="city">📍 <span class="tx">${esc(cityLabel)}</span> ▾</button>
     <span class="sp"></span>
     <nav class="dnav"><a class="pill" href="#saved">♡ ${t('saved')}</a><a class="pill" href="#mine">📋 ${t('my_ads')}</a>${st.isAdmin ? `<a class="pill" href="#admin">🛡 ${t('admin')}</a>` : ''}<a class="pill postbtn" href="#post">＋ ${t('post')}</a></nav>
@@ -641,7 +641,7 @@ function renderChrome() {
   ]
     .map(
       ([h, i, l, c]) =>
-        `<a href="#${h}" class="${c || ''} ${r === h ? 'on' : ''}"><span class="i">${i}</span>${l}</a>`,
+        `<a href="#${h}" class="${c || ''} ${r === h ? 'on' : ''}"${h === 'home' ? ' data-act="home"' : ''}><span class="i">${i}</span>${l}</a>`,
     )
     .join('');
   document.getElementById('ftr').innerHTML =
@@ -954,6 +954,16 @@ document.addEventListener('click', (e) => {
     const email = (a.closest('form') || {}).dataset?.email;
     if (!email || !st.sb) return;
     st.sb.auth.resend({ type: 'signup', email }).then(({ error }) => toast(error ? t('save_err') : t('verify_sent'), error ? 1 : 0));
+    return;
+  }
+  if (act === 'home') {
+    // logo / Home: back to the start page with search and filters cleared (also when already on it)
+    e.preventDefault();
+    Object.assign(st, { q: '', cat: 'all', stype: 'all', sort: 'new', district: '' });
+    modal('');
+    if (cur() !== 'home') location.hash = '#home';
+    else route(true);
+    window.scrollTo(0, 0);
     return;
   }
   if (act === 'account') {
