@@ -79,10 +79,6 @@ You can also remove an ad in Supabase → Table Editor → `ads` → delete the 
 phone or WhatsApp buttons. Only the SQL editor can create them. Delete them on the admin page, or all at once:
 `delete from public.ads where sample;`
 
-**Messages:** the footer has a contact form (name, email or phone, message). Anyone can send; only admins can read.
-Messages appear at the top of the admin page with a count of new ones and reply buttons (email, or WhatsApp/call
-for phone numbers). Spam limits: 3 messages per contact per hour, 60 per hour in total.
-
 Built-in limits (in `supabase/setup.sql`): each account can post at most 30 new ads per day and store at most
 400 photo files; the post date is always set by the server. Photo addresses must point at our own photo storage.
 Also keep the sign-up rate limits in Supabase → Authentication → Rate Limits low, since sign-ups need no email confirmation.
