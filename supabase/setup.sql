@@ -130,3 +130,57 @@ create policy "maamila delete own" on storage.objects for delete to authenticate
   using (bucket_id = 'ad-photos' and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin()));
 create policy "maamila list own" on storage.objects for select to authenticated
   using (bucket_id = 'ad-photos' and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin()));
+
+-- Messages from the contact form in the footer. Anyone can send one (logged in or not);
+-- only admins can read, mark as handled or delete them.
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  sender uuid default auth.uid() references auth.users(id) on delete set null,
+  name text not null default '' check (char_length(name) <= 60),
+  contact text not null check (char_length(contact) between 5 and 100),
+  body text not null check (char_length(body) between 5 and 2000),
+  handled boolean not null default false
+);
+create index if not exists messages_created_idx on public.messages (created_at desc);
+alter table public.messages enable row level security;
+drop policy if exists "anyone can send a message" on public.messages;
+drop policy if exists "admins read messages" on public.messages;
+drop policy if exists "admins update messages" on public.messages;
+drop policy if exists "admins delete messages" on public.messages;
+create policy "anyone can send a message" on public.messages for insert to anon, authenticated
+  with check (handled = false);
+create policy "admins read messages" on public.messages for select to authenticated using (public.is_admin());
+create policy "admins update messages" on public.messages for update to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+create policy "admins delete messages" on public.messages for delete to authenticated using (public.is_admin());
+
+-- Spam limits for website visitors: the date is set by the server, at most 3 messages per contact address
+-- per hour and at most 60 messages per hour in total. Senders cannot read messages, so the counting runs in a
+-- helper with the owner's rights (security definer); the trigger itself runs as the visitor.
+create or replace function public.message_counts(c text, out same_contact bigint, out total bigint)
+language sql stable security definer set search_path = '' as $$
+  select count(*) filter (where lower(m.contact) = lower(c)), count(*)
+  from public.messages m where m.created_at > now() - interval '1 hour'
+$$;
+revoke execute on function public.message_counts(text) from public;
+grant execute on function public.message_counts(text) to anon, authenticated;
+create or replace function public.messages_guard() returns trigger
+language plpgsql set search_path = '' as $$
+declare n record;
+begin
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+  new.created_at := now();
+  new.handled := false;
+  new.sender := auth.uid();
+  select * into n from public.message_counts(new.contact);
+  if n.same_contact >= 3 or n.total >= 60 then
+    raise exception 'msg_limit: too many messages, try again later' using errcode = 'P0001';
+  end if;
+  return new;
+end $$;
+drop trigger if exists messages_guard on public.messages;
+create trigger messages_guard before insert on public.messages
+  for each row execute function public.messages_guard();
