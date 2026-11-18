@@ -75,6 +75,10 @@ insert into public.admins (user_id) select id from auth.users where email = 'som
 Remove one with `delete from public.admins where user_id = (select id from auth.users where email = '…');`.
 You can also remove an ad in Supabase → Table Editor → `ads` → delete the row.
 
+**Sample listings:** while the site is new it shows example listings marked «نمونه» (column `ads.sample`), with no
+phone or WhatsApp buttons. Only the SQL editor can create them. Delete them on the admin page, or all at once:
+`delete from public.ads where sample;`
+
 **Messages:** the footer has a contact form (name, email or phone, message). Anyone can send; only admins can read.
 Messages appear at the top of the admin page with a count of new ones and reply buttons (email, or WhatsApp/call
 for phone numbers). Spam limits: 3 messages per contact per hour, 60 per hour in total.

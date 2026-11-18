@@ -47,7 +47,7 @@ const st = {
 };
 const PAGE = 48;
 const LIST_COLS =
-  'id,created_at,owner,title,cat,price,stype,sale,city,district,name,phone,wa,thumb,sold';
+  'id,created_at,owner,title,cat,price,stype,sale,city,district,name,phone,wa,thumb,sold,sample';
 const COLS = LIST_COLS + ',descr,images';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PHOTO_PREFIX = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/`;
@@ -77,6 +77,7 @@ const fromRow = (r) => {
     images,
     thumb: isPhotoUrl(r.thumb) ? r.thumb : '',
     sold: !!r.sold,
+    sample: !!r.sample, // example listing added by the site owner: no contact buttons
     icon: catById(r.cat).i,
   };
 };
@@ -644,7 +645,7 @@ function photo(a, extra = '') {
 function adCard(a) {
   const sv = st.me.saved.includes(a.id);
   return `<a class="ad" href="#ad-${a.id}"><div style="position:relative">${photo(a)}
-    <div class="ph-tags" style="position:absolute;top:8px;inset-inline-start:8px;display:flex;gap:4px;flex-wrap:wrap;max-width:75%">${a.sold ? `<span class="tag sold">${t('sold')}</span>` : ''}${stTag(a)}${saleTag(a)}</div>
+    <div class="ph-tags" style="position:absolute;top:8px;inset-inline-start:8px;display:flex;gap:4px;flex-wrap:wrap;max-width:75%">${a.sample ? `<span class="tag demo">${t('sample')}</span>` : ''}${a.sold ? `<span class="tag sold">${t('sold')}</span>` : ''}${stTag(a)}${saleTag(a)}</div>
     <button class="heart ${sv ? 'on' : ''}" data-act="save" data-id="${a.id}" aria-label="${t('saved')}">${sv ? '♥' : '♡'}</button>
     </div>
     <div class="bd"><div class="tt">${esc(a.title)}</div><div class="pr">${priceHtml(a)}</div><div class="mt">📍 ${esc(placeName(a))} · ${ago(a.at)}</div></div></a>`;
@@ -762,21 +763,25 @@ function vAd(id) {
     return `<div class="wrap"><div class="empty" style="margin-top:16px"><div class="e">🤷</div><p>${t('not_found')}</p><a class="btn" href="#home">${t('back_home')}</a></div></div>`;
   const c = catById(a.cat);
   const mine = a.owner && a.owner === st.uid;
-  const { more, sim } = getRel(a);
+  const rel = getRel(a);
+  const more = a.sample ? [] : rel.more; // sample listings share a placeholder number
+  const sim = rel.sim;
   const sv = st.me.saved.includes(a.id);
   const ph = latinDigits(a.phone);
   return `<div class="wrap"><div class="bc"><a href="#home">${t('home')}</a> › <a href="#home" data-act="cat" data-id="${c.id}">${L(c.n)}</a></div>
   <div class="adp">
     <div class="gal card" style="padding:10px"><div class="main" id="gmain">${photo(a)}</div><div class="ths" id="gths"></div></div>
     <div class="card pad info">
-      <div class="row" style="flex-wrap:wrap;gap:4px;margin-bottom:6px">${a.sold ? `<span class="tag sold">${t('sold')}</span>` : ''}${stTag(a)}${saleTag(a)}</div>
+      <div class="row" style="flex-wrap:wrap;gap:4px;margin-bottom:6px">${a.sample ? `<span class="tag demo">${t('sample')}</span>` : ''}${a.sold ? `<span class="tag sold">${t('sold')}</span>` : ''}${stTag(a)}${saleTag(a)}</div>
       <h1>${esc(a.title)}</h1>
       <div class="faint" style="font-size:13px">📍 ${esc(placeName(a))} · ${t('posted')} ${ago(a.at)}</div>
       <div class="price">${priceHtml(a, 1)}</div>
       ${
         a.sold
           ? ''
-          : `<div class="cta"><a class="btn call" href="tel:${esc(ph.replace(/\s/g, ''))}">📞 ${t('call')}</a>${a.wa ? `<a class="btn wa" href="https://wa.me/${waNum(a.phone)}" target="_blank" rel="noopener">💬 ${t('whatsapp')}</a>` : `<button class="btn" data-act="copy" data-p="${esc(ph)}">📋 ${t('copy')}</button>`}</div>
+          : a.sample
+            ? `<div class="safe" style="margin:12px 0">🛈 ${t('sample_note')}</div>`
+            : `<div class="cta"><a class="btn call" href="tel:${esc(ph.replace(/\s/g, ''))}">📞 ${t('call')}</a>${a.wa ? `<a class="btn wa" href="https://wa.me/${waNum(a.phone)}" target="_blank" rel="noopener">💬 ${t('whatsapp')}</a>` : `<button class="btn" data-act="copy" data-p="${esc(ph)}">📋 ${t('copy')}</button>`}</div>
       <div class="num"><b dir="ltr">${esc(ph)}</b><button class="btn sm" data-act="copy" data-p="${esc(ph)}">${t('copy')}</button></div>`
       }
       <div class="seller"><div class="av" style="--h:${hashH(a.phone)}">${esc((a.name || '?').trim()[0] || '?')}</div><div style="flex:1;min-width:0"><div class="faint" style="font-size:12px">${t('seller')}</div><b>${esc(a.name)}</b><div class="faint" style="font-size:12.5px">${STYPE[a.stype]?.[0] || ''} ${t(a.stype)}</div></div>

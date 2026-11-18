@@ -41,6 +41,8 @@ alter table public.ads add column if not exists search text generated always as 
             U&'\064A\0649\0643\06CD\06D0\200C', U&'\06CC\06CC\06A9\06CC\06CC ')
 ) stored;
 alter table public.ads add column if not exists price_n bigint generated always as (nullif(price, 0)) stored;
+-- sample listings (added by the site owner while the site is new): shown with a "sample" label, no contact buttons
+alter table public.ads add column if not exists sample boolean not null default false;
 
 create extension if not exists pg_trgm with schema extensions;
 create index if not exists ads_created_idx on public.ads (created_at desc);
@@ -78,12 +80,14 @@ begin
   end if;
   if tg_op = 'INSERT' then
     new.created_at := now();
+    new.sample := false; -- only the site owner (SQL editor) can add sample listings
     if (select count(*) from public.ads a
         where a.owner = new.owner and a.created_at > now() - interval '1 day') >= 30 then
       raise exception 'ad_limit: at most 30 new ads per day' using errcode = 'P0001';
     end if;
   else
     new.created_at := old.created_at;
+    new.sample := old.sample;
     new.owner := old.owner; -- an ad always stays with the account that posted it (also when an admin edits it)
   end if;
   return new;
