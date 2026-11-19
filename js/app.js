@@ -301,8 +301,10 @@ function getAdminMsgs() {
 }
 const CONTACT_EMAIL = 'info@maamila.com';
 /** A link that opens a new email in Gmail (in the browser), addressed to `to`. */
-const gmailCompose = (to, subject = '') =>
-  `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}${subject ? '&su=' + encodeURIComponent(subject) : ''}`;
+/** A new Gmail message in the browser. `from`: the Google account to open Gmail as (authuser); Gmail asks to
+ *  sign in to it if this browser is not signed in to that account yet. */
+const gmailCompose = (to, subject = '', from = '') =>
+  `https://mail.google.com/mail/?${from ? 'authuser=' + encodeURIComponent(from) + '&' : ''}view=cm&fs=1&to=${encodeURIComponent(to)}${subject ? '&su=' + encodeURIComponent(subject) : ''}`;
 const isEmail = (c) => /^[^@\s"<>]+@[^@\s"<>]+\.[^@\s"<>]+$/.test(latinDigits(c || '').trim());
 /** Sends a reply from the admin inbox: the Worker (POST /api/reply) emails it from info@maamila.com. */
 async function sendSiteReply(f) {
@@ -345,8 +347,11 @@ const IS_PHONE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navig
 function contactLink() {
   const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t('contact_subject'))}`;
   const style = 'color:var(--blue);font-weight:700';
-  if (IS_PHONE) return `<a href="${esc(mailto)}" dir="ltr" style="${style}">${CONTACT_EMAIL}</a>`;
-  return `<a href="${esc(gmailCompose(CONTACT_EMAIL, t('contact_subject')))}" target="_blank" rel="noopener" dir="ltr" style="${style}">${CONTACT_EMAIL}</a>
+  // logged-in visitors: write from the same email address they use on Maamila
+  const from = st.uid && isEmail(st.email) ? st.email : '';
+  if (IS_PHONE)
+    return `<a href="${esc(mailto)}" dir="ltr" style="${style}">${CONTACT_EMAIL}</a>${from ? `<div class="faint" style="font-size:12.5px;margin-top:2px">${t('send_from_hint', `<span dir="ltr">${esc(from)}</span>`)}</div>` : ''}`;
+  return `<a href="${esc(gmailCompose(CONTACT_EMAIL, t('contact_subject'), from))}" target="_blank" rel="noopener" dir="ltr" style="${style}">${CONTACT_EMAIL}</a>
       <span class="faint" style="font-size:12.5px">(Gmail · <a href="${esc(mailto)}" style="color:inherit">${t('other_app')}</a>)</span>`;
 }
 /** Reply buttons for an inbox email: Gmail (and other email apps), or WhatsApp/call for a phone number. */
