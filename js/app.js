@@ -46,6 +46,7 @@ const st = {
   draft: null,
 };
 const PAGE = 48;
+const MAX_PHOTOS = 10; // photos per listing (the database allows the same)
 const LIST_COLS =
   'id,created_at,owner,title,cat,price,stype,sale,city,district,name,phone,wa,thumb,sold,sample';
 const COLS = LIST_COLS + ',descr,images';
@@ -998,7 +999,7 @@ function drawPhotos() {
           `<div class="th"><img src="${esc(im)}" alt=""><button type="button" data-act="rmimg" data-i="${i}">✕</button></div>`,
       )
       .join('') +
-    (d.imgs.length < 3 ? `<label class="addp" for="pfile"><b>＋</b>${t('add_photo')}</label>` : '');
+    (d.imgs.length < MAX_PHOTOS ? `<label class="addp" for="pfile"><b>＋</b>${t('add_photo')}</label>` : '');
 }
 function vMine() {
   if (!st.uid)
@@ -1354,12 +1355,12 @@ document.addEventListener('change', (e) => {
     const files = [...el.files];
     el.value = '';
     if (!st.draft) return;
-    const room = 3 - st.draft.imgs.length;
+    const room = MAX_PHOTOS - st.draft.imgs.length;
     if (files.length > room) toast(t('max3'));
     files.slice(0, Math.max(0, room)).forEach((f) =>
       resize(f, 900, 60000)
         .then((u) => {
-          if (st.draft && st.draft.imgs.length < 3) {
+          if (st.draft && st.draft.imgs.length < MAX_PHOTOS) {
             st.draft.imgs.push(u);
             drawPhotos();
           }

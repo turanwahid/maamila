@@ -65,7 +65,7 @@ T.en = {
   sort_exp: 'Most expensive',
   seller_type: 'Who is selling?',
   sale_type: 'Type of sale',
-  photos: 'Photos (up to 3)',
+  photos: 'Photos (up to 10)',
   add_photo: 'Add photo',
   title: 'Listing title',
   title_ph: 'For example: top-grade Herat saffron',
@@ -178,7 +178,7 @@ T.en = {
   mins: (n) => `${n} min ago`,
   hours: (n) => `${n} h ago`,
   days: (n) => `${n} day${n === '1' ? '' : 's'} ago`,
-  max3: 'Up to 3 photos',
+  max3: 'Up to 10 photos',
   in_city: (c) => `in ${c}`,
 };
 TERMS.en = {

@@ -15,10 +15,14 @@ create table if not exists public.ads (
   name text not null check (char_length(name) between 1 and 60),
   phone text not null check (char_length(phone) between 9 and 16),
   wa boolean not null default true,
-  images text[] not null default '{}' check (cardinality(images) <= 3),
+  images text[] not null default '{}' check (cardinality(images) <= 10),
   thumb text not null default '',
   sold boolean not null default false
 );
+
+-- up to 10 photos per listing (raised from 3)
+alter table public.ads drop constraint if exists ads_images_check;
+alter table public.ads add constraint ads_images_check check (cardinality(images) <= 10);
 
 -- Photo addresses must point at our own photo storage (blocks HTML/script injection through these fields).
 create or replace function public.ad_photo_ok(u text) returns boolean
@@ -109,7 +113,7 @@ create policy "owner can update" on public.ads for update to authenticated
 create policy "owner can delete" on public.ads for delete to authenticated
   using (owner = auth.uid() or public.is_admin());
 
--- photo storage (public read, each user writes only in their own folder, at most 400 files per account;
+-- photo storage (public read, each user writes only in their own folder, at most 1200 files per account;
 -- admins can also list and delete photos, to clean up after removing an ad)
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('ad-photos', 'ad-photos', true, 1048576, array['image/jpeg','image/png','image/webp'])
@@ -127,7 +131,7 @@ create policy "maamila upload own" on storage.objects for insert to authenticate
   with check (bucket_id = 'ad-photos' and (storage.foldername(name))[1] = auth.uid()::text
               and coalesce((auth.jwt()->>'is_anonymous')::boolean, false) = false
               and (select count(*) from storage.objects o
-                   where o.bucket_id = 'ad-photos' and o.name like auth.uid()::text || '/%') < 400);
+                   where o.bucket_id = 'ad-photos' and o.name like auth.uid()::text || '/%') < 1200);
 create policy "maamila update own" on storage.objects for update to authenticated
   using (bucket_id = 'ad-photos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "maamila delete own" on storage.objects for delete to authenticated

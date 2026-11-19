@@ -624,8 +624,11 @@ header {
   display: flex;
   gap: 8px;
   margin-top: 8px;
+  overflow-x: auto; /* up to 10 photos: the thumbnails scroll sideways */
+  padding-bottom: 4px;
 }
 .gal .ths button {
+  flex: 0 0 auto;
   width: 70px;
   height: 56px;
   border-radius: 10px;
