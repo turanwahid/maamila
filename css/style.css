@@ -800,6 +800,9 @@ header {
   margin-top: -22px;
   box-shadow: 0 6px 16px rgba(26, 86, 219, 0.4);
 }
+.bnav a.plus .i svg {
+  display: block; /* the + drawn as two lines, exactly centred in the circle */
+}
 footer {
   padding: 26px 0 30px;
   color: var(--ink2);
@@ -926,6 +929,10 @@ footer {
   }
   .bnav {
     display: flex;
+  }
+  /* on phones the account / login button lives in the bottom bar */
+  .hb .acc {
+    display: none;
   }
   .adp {
     grid-template-columns: 1fr;

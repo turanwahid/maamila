@@ -706,12 +706,13 @@ function renderChrome() {
     <nav class="dnav"><a class="pill" href="#saved">♡ ${t('saved')}</a><a class="pill" href="#mine">📋 ${t('my_ads')}</a>${st.isAdmin ? `<a class="pill" href="#admin">🛡 ${t('admin')}${unreadBadge()}</a>` : ''}<a class="pill postbtn" href="#post">＋ ${t('post')}</a></nav>
     ${st.uid ? `<button class="pill acc" data-act="account" title="${esc(st.email)}">👤 <span class="tx">${t('account')}</span></button>` : `<button class="pill acc" data-act="auth" data-m="login">🔑 <span class="tx">${t('login')}</span></button>`}
     <label class="pill lpill"><span class="gl">🌐</span> <select id="langsel" aria-label="Language">${LANGS.map((l) => `<option value="${l[0]}" ${l[0] === LANG ? 'selected' : ''}>${l[1]}</option>`).join('')}</select></label>`;
-  // five buttons, so the ＋ (post) sits exactly in the middle
+  const PLUS = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
   document.getElementById('bnav').innerHTML = [
     ['home', '🏠', t('home'), '', ' data-act="home"'],
     ['saved', '♡', t('saved')],
-    ['post', '＋', t('post'), 'plus'],
+    ['post', PLUS, t('post'), 'plus'],
     ['mine', '📋', t('my_ads')],
+    // fifth button (account / login), so the ＋ sits exactly in the middle; on phones it replaces the top-bar one
     st.uid
       ? ['', '👤', t('account'), '', ' data-act="account"']
       : ['', '🔑', t('login'), '', ' data-act="auth" data-m="login"'],
