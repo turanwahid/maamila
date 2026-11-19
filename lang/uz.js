@@ -120,7 +120,6 @@ T.uz = {
   reply_failed: 'جواب یوبریلمه‌دی. قیته اورینیب کورینگ.',
   reply_empty: 'آلدین جوابنی یازینگ.',
   replied: 'جواب بېریلدی',
-  reply_gmail: 'Gmail ده جواب',
   inbox: 'خبرلر قوتیسی',
   inbox_d: 'اینسانلر info@maamila.com گه یوبرگن ایمیللر.',
   reply: 'جواب',

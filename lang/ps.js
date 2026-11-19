@@ -120,7 +120,6 @@ T.ps = {
   reply_failed: 'ځواب ونه لېږل شو. بیا هڅه وکړئ.',
   reply_empty: 'لومړی ځواب ولیکئ.',
   replied: 'ځواب ورکړل شو',
-  reply_gmail: 'په Gmail کې ځواب',
   inbox: 'د پیغامونو صندوق',
   inbox_d: 'هغه ایمیلونه چې خلک یې info@maamila.com ته لېږي.',
   reply: 'ځواب',

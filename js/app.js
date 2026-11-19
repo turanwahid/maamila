@@ -342,8 +342,7 @@ async function sendSiteReply(f) {
 function replyBtns(m) {
   const c = latinDigits(m.contact).trim();
   if (/^[^@\s"<>]+@[^@\s"<>]+\.[^@\s"<>]+$/.test(c)) {
-    const subj = t('reply_subject') + ': ' + (m.body.split('\n')[0] || '').slice(0, 80);
-    return `<a class="btn sm" href="${esc(gmailCompose(c, subj))}" target="_blank" rel="noopener">✉ ${t('reply_gmail')}</a>`;
+    return ''; // email senders get the reply box above
   }
   const d = c.replace(/\D/g, '');
   if (d.length < 9) return '';

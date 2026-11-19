@@ -71,13 +71,14 @@ async function sendReply(request, env) {
   const m = rows[0];
   const to = String(m.contact).trim();
   if (!/^[^@\s"<>]+@[^@\s"<>]+\.[^@\s"<>]+$/.test(to)) return json({ error: 'no email address' }, 400);
-  if (!env.BREVO_KEY) return json({ error: 'BREVO_KEY is not set on the Worker' }, 500);
+  const brevoKey = String(env.BREVO_KEY || '').replace(/\s+/g, ''); // pasted keys sometimes carry spaces or line breaks
+  if (!brevoKey) return json({ error: 'BREVO_KEY is not set on the Worker' }, 500);
   const firstLine = (m.body.split('\n')[0] || '').trim().slice(0, 120);
   const subject = /^re:/i.test(firstLine) ? firstLine : `Re: ${firstLine || 'Maamila'}`;
   const quoted = m.body.split('\n').map((l) => '> ' + l).join('\n');
   const sent = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
-    headers: { 'api-key': env.BREVO_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers: { 'api-key': brevoKey, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
       sender: { name: 'Maamila', email: 'info@maamila.com' },
       replyTo: { email: 'info@maamila.com', name: 'Maamila' },
@@ -91,7 +92,15 @@ async function sendReply(request, env) {
   });
   if (!sent.ok) {
     const detail = await sent.text();
-    console.error(`Brevo refused the reply: ${sent.status} ${detail}`);
+    // The key itself is never logged, only what kind of key it looks like.
+    const kind = brevoKey.startsWith('xkeysib-')
+      ? 'an API key (right type)'
+      : brevoKey.startsWith('xsmtpsib-')
+        ? 'an SMTP key (wrong type: an API key from the "API keys" tab is needed)'
+        : /[*•…]/.test(brevoKey)
+          ? 'a masked key copied from the key list (copy it when Brevo first shows it)'
+          : 'not a Brevo key';
+    console.error(`Brevo refused the reply: ${sent.status} ${detail}. BREVO_KEY is ${kind}, ${brevoKey.length} characters.`);
     return json({ error: 'sending failed', status: sent.status }, 502);
   }
   // Store the reply on the message (again as the admin, so the database checks it).

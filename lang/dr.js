@@ -120,7 +120,6 @@ T.dr = {
   reply_failed: 'پاسخ فرستاده نشد. دوباره کوشش کنید.',
   reply_empty: 'اول پاسخ را بنویسید.',
   replied: 'پاسخ داده شد',
-  reply_gmail: 'پاسخ در Gmail',
   inbox: 'صندوق پیام',
   inbox_d: 'ایمیل‌هایی که مردم به info@maamila.com می‌فرستند.',
   reply: 'پاسخ',
