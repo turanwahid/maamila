@@ -373,7 +373,7 @@ async function sendContact(f) {
   btn.disabled = true;
   // the database sets the sender to the logged-in account's email itself
   const { error } = await st.sb.from('messages').insert({
-    name: (st.me.name || '').slice(0, 60),
+    name: '', // the sender is their account email; the seller name saved in this browser may belong to someone else
     contact: st.email,
     body: (subject ? subject + '\n\n' : '') + body,
   });
@@ -1006,7 +1006,7 @@ function vAdmin() {
       ? `<div class="card">${msgs
           .map(
             (m) => `<div style="padding:12px 14px;border-bottom:1px solid var(--line);${m.handled ? 'opacity:.6' : ''}">
-    <div class="row" style="gap:8px;flex-wrap:wrap;font-size:13px"><b>${esc(m.name || '—')}</b><span dir="ltr" class="faint">${esc(m.contact)}</span><span class="faint">· ${ago(Date.parse(m.created_at))}</span>${m.handled ? '' : `<span class="tag w">${t('new_label')}</span>`}</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;font-size:13px">${m.name ? `<b>${esc(m.name)}</b><span dir="ltr" class="faint">${esc(m.contact)}</span>` : `<b dir="ltr">${esc(m.contact)}</b>`}<span class="faint">· ${ago(Date.parse(m.created_at))}</span>${m.handled ? '' : `<span class="tag w">${t('new_label')}</span>`}</div>
     <p style="white-space:pre-line;margin:6px 0 8px;overflow-wrap:anywhere">${esc(m.body)}</p>
     ${m.reply ? `<div style="background:#eef4ff;border-radius:10px;padding:8px 12px;margin:0 0 8px;font-size:13.5px"><b>✓ ${t('replied')}</b> <span class="faint">· ${ago(Date.parse(m.replied_at))}</span><div style="white-space:pre-line;margin-top:4px;overflow-wrap:anywhere">${esc(m.reply)}</div></div>` : ''}
     ${isEmail(m.contact) ? `<form class="replyform" data-id="${m.id}" novalidate style="margin:0 0 8px"><textarea name="reply" maxlength="5000" placeholder="${t('reply_ph')}" style="width:100%;min-height:70px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;resize:vertical"></textarea><button class="btn sm p" style="margin-top:6px">➤ ${t('reply_send')}</button></form>` : ''}
