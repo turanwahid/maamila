@@ -338,6 +338,17 @@ async function sendSiteReply(f) {
   renderChrome();
   route(true);
 }
+/** Footer email link. Phones: a mailto link, which opens the Gmail app (or the phone's email app) with a new
+ *  email to info@maamila.com — Gmail's website cannot start a new email on phones. Computers: a new email in
+ *  Gmail in the browser, plus a small link for other email programs. */
+const IS_PHONE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+function contactLink() {
+  const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t('contact_subject'))}`;
+  const style = 'color:var(--blue);font-weight:700';
+  if (IS_PHONE) return `<a href="${esc(mailto)}" dir="ltr" style="${style}">${CONTACT_EMAIL}</a>`;
+  return `<a href="${esc(gmailCompose(CONTACT_EMAIL, t('contact_subject')))}" target="_blank" rel="noopener" dir="ltr" style="${style}">${CONTACT_EMAIL}</a>
+      <span class="faint" style="font-size:12.5px">(Gmail · <a href="${esc(mailto)}" style="color:inherit">${t('other_app')}</a>)</span>`;
+}
 /** Reply buttons for an inbox email: Gmail (and other email apps), or WhatsApp/call for a phone number. */
 function replyBtns(m) {
   const c = latinDigits(m.contact).trim();
@@ -725,8 +736,7 @@ function renderChrome() {
   document.getElementById('ftr').innerHTML =
     `<div class="wrap"><div class="row" style="gap:8px;margin-bottom:6px">${LOGO.replace('<svg', '<svg style="width:26px;height:26px"')}<b style="color:var(--blue)">${t('brand')}</b><span class="sp"></span><span dir="ltr">maamila.com</span></div>
     <div>${t('about')}</div>
-    <div style="margin:10px 0 4px">📧 ${t('contact_us')}: <a href="${esc(gmailCompose(CONTACT_EMAIL, t('contact_subject')))}" target="_blank" rel="noopener" dir="ltr" style="color:var(--blue);font-weight:700">${CONTACT_EMAIL}</a>
-      <span class="faint" style="font-size:12.5px">(Gmail · <a href="mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t('contact_subject'))}" style="color:inherit">${t('other_app')}</a>)</span></div><div class="note"><a href="#terms" style="color:var(--blue);font-weight:700">📜 ${t('terms')}</a> · <a href="#post">＋ ${t('post')}</a> · © ${Number(2026).toLocaleString('fa-AF', { useGrouping: false })} ${t('brand')}</div></div>`;
+    <div style="margin:10px 0 4px">📧 ${t('contact_us')}: ${contactLink()}</div><div class="note"><a href="#terms" style="color:var(--blue);font-weight:700">📜 ${t('terms')}</a> · <a href="#post">＋ ${t('post')}</a> · © ${Number(2026).toLocaleString('fa-AF', { useGrouping: false })} ${t('brand')}</div></div>`;
 }
 
 /* ===== views ===== */
