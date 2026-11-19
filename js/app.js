@@ -706,15 +706,19 @@ function renderChrome() {
     <nav class="dnav"><a class="pill" href="#saved">♡ ${t('saved')}</a><a class="pill" href="#mine">📋 ${t('my_ads')}</a>${st.isAdmin ? `<a class="pill" href="#admin">🛡 ${t('admin')}${unreadBadge()}</a>` : ''}<a class="pill postbtn" href="#post">＋ ${t('post')}</a></nav>
     ${st.uid ? `<button class="pill acc" data-act="account" title="${esc(st.email)}">👤 <span class="tx">${t('account')}</span></button>` : `<button class="pill acc" data-act="auth" data-m="login">🔑 <span class="tx">${t('login')}</span></button>`}
     <label class="pill lpill"><span class="gl">🌐</span> <select id="langsel" aria-label="Language">${LANGS.map((l) => `<option value="${l[0]}" ${l[0] === LANG ? 'selected' : ''}>${l[1]}</option>`).join('')}</select></label>`;
+  // five buttons, so the ＋ (post) sits exactly in the middle
   document.getElementById('bnav').innerHTML = [
-    ['home', '🏠', t('home')],
+    ['home', '🏠', t('home'), '', ' data-act="home"'],
     ['saved', '♡', t('saved')],
     ['post', '＋', t('post'), 'plus'],
     ['mine', '📋', t('my_ads')],
+    st.uid
+      ? ['', '👤', t('account'), '', ' data-act="account"']
+      : ['', '🔑', t('login'), '', ' data-act="auth" data-m="login"'],
   ]
     .map(
-      ([h, i, l, c]) =>
-        `<a href="#${h}" class="${c || ''} ${r === h ? 'on' : ''}"${h === 'home' ? ' data-act="home"' : ''}><span class="i">${i}</span>${l}</a>`,
+      ([h, i, l, c, act = '']) =>
+        `<a href="#${h}" class="${c || ''} ${h && r === h ? 'on' : ''}"${act}><span class="i">${i}</span>${l}</a>`,
     )
     .join('');
   document.getElementById('ftr').innerHTML =
@@ -1085,6 +1089,7 @@ document.addEventListener('click', (e) => {
     return;
   }
   if (act === 'account') {
+    e.preventDefault();
     openAccount();
     return;
   }
