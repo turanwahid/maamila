@@ -511,6 +511,22 @@ const PROVS = [
     ],
   ],
 ];
+/* English names (the English interface); districts keep their local names */
+const CAT_EN = {
+  mobile: 'Mobile & electronics', vehicles: 'Cars & motorbikes', home: 'Home & furniture', clothes: 'Clothes',
+  food: 'Food & dried fruit', carpet: 'Carpets & handicrafts', building: 'Building materials',
+  agri: 'Farming & livestock', industry: 'Industrial machinery', solar: 'Solar & power', other: 'Other',
+};
+const PROV_EN = {
+  kabul: 'Kabul', herat: 'Herat', balkh: 'Balkh', kandahar: 'Kandahar', nangarhar: 'Nangarhar', kunduz: 'Kunduz',
+  ghazni: 'Ghazni', helmand: 'Helmand', faryab: 'Faryab', jowzjan: 'Jowzjan', takhar: 'Takhar', badakhshan: 'Badakhshan',
+  baghlan: 'Baghlan', samangan: 'Samangan', sarepol: 'Sar-e Pol', parwan: 'Parwan', kapisa: 'Kapisa', panjshir: 'Panjshir',
+  wardak: 'Wardak', logar: 'Logar', paktia: 'Paktia', khost: 'Khost', paktika: 'Paktika', laghman: 'Laghman',
+  kunar: 'Kunar', nuristan: 'Nuristan', badghis: 'Badghis', ghor: 'Ghor', bamyan: 'Bamyan', daykundi: 'Daykundi',
+  uruzgan: 'Uruzgan', zabul: 'Zabul', nimroz: 'Nimroz', farah: 'Farah',
+};
+CATS.forEach((c) => (c.n.en = CAT_EN[c.id] || c.n.dr));
+PROVS.forEach((p) => (p[1].en = PROV_EN[p[0]] || p[1].dr));
 const CITIES = PROVS.map((p) => [p[0], p[1]]);
 const provById = (id) => PROVS.find((p) => p[0] === id);
 const cityName = (id) => {
@@ -527,7 +543,7 @@ const distsOf = (id) => {
   const c = provById(id);
   return c ? faSort(c[2]) : [];
 };
-const placeName = (a) => (a.district ? `${a.district}، ${cityName(a.city)}` : cityName(a.city));
+const placeName = (a) => (a.district ? `${a.district}${SEP()}${cityName(a.city)}` : cityName(a.city));
 const distOptions = (prov, sel, allLabel) =>
   (allLabel ? `<option value="">${allLabel}</option>` : `<option value="">—</option>`) +
   distsOf(prov)

@@ -779,6 +779,7 @@ function waNum(p) {
 function renderChrome() {
   const li = LANGS.find((l) => l[0] === LANG);
   document.documentElement.lang = LANG === 'dr' ? 'fa-AF' : li[2];
+  document.documentElement.dir = isLtr() ? 'ltr' : 'rtl';
   document.title = `${t('brand')} — ${t('hero')}`;
   const r = cur();
   const cityLabel = st.city === 'all' ? t('all_af') : cityName(st.city);
@@ -807,7 +808,7 @@ function renderChrome() {
   document.getElementById('ftr').innerHTML =
     `<div class="wrap"><div class="row" style="gap:8px;margin-bottom:6px">${LOGO.replace('<svg', '<svg style="width:26px;height:26px"')}<b style="color:var(--blue)">${t('brand')}</b><span class="sp"></span><span dir="ltr">maamila.com</span></div>
     <div>${t('about')}</div>
-    <div style="margin:10px 0 4px">📧 ${t('contact_us')}: ${contactLink()}</div><div class="note"><a href="#terms" style="color:var(--blue);font-weight:700">📜 ${t('terms')}</a> · <a href="#post">＋ ${t('post')}</a> · © ${Number(2026).toLocaleString('fa-AF', { useGrouping: false })} ${t('brand')}</div></div>`;
+    <div style="margin:10px 0 4px">📧 ${t('contact_us')}: ${contactLink()}</div><div class="note"><a href="#terms" style="color:var(--blue);font-weight:700">📜 ${t('terms')}</a> · <a href="#post">＋ ${t('post')}</a> · © ${Number(2026).toLocaleString(isLtr() ? 'en-US' : 'fa-AF', { useGrouping: false })} ${t('brand')}</div></div>`;
 }
 
 /* ===== views ===== */
@@ -821,7 +822,7 @@ function vHome() {
     st.city === 'all'
       ? t('all_af')
       : st.district
-        ? `${st.district}، ${cityName(st.city)}`
+        ? `${st.district}${SEP()}${cityName(st.city)}`
         : cityName(st.city);
   const body =
     st.listErr === key || st.dbErr

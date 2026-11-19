@@ -1,13 +1,14 @@
 // Service worker: lets browsers install Maamila as an app, and shows the last loaded version when offline.
 // Always asks the network first, so visitors get updates right away; the copy is only a fallback.
 // Ads, photos and accounts (Supabase, another address) are not touched.
-const CACHE = 'maamila-v1';
+const CACHE = 'maamila-v2';
 const SHELL = [
   '/',
   '/css/style.css',
   '/lang/dr.js',
   '/lang/ps.js',
   '/lang/uz.js',
+  '/lang/en.js',
   '/js/utils.js',
   '/js/data.js',
   '/js/config.js',
