@@ -631,7 +631,7 @@ async function upload(path, dataUrl) {
   if (error) throw error;
   return st.sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
-async function saveAd(id, ad, imgs, isNew) {
+async function saveAd(id, ad, imgs, isNew, owner) {
   const uid = await ensureUser();
   const v = Date.now().toString(36);
   const urls = [];
@@ -678,6 +678,7 @@ async function saveAd(id, ad, imgs, isNew) {
   st.listStale = true; // the home list reloads (in the background) the next time it is shown
   st.rel.clear();
   cleanupPhotos(uid, id, [...urls, thumb]);
+  if (owner && owner !== uid) cleanupPhotos(owner, id, [...urls, thumb]); // admin edit: removed photos of the owner
   return a;
 }
 async function cleanupPhotos(uid, id, keep) {
@@ -891,7 +892,7 @@ function vAd(id) {
         mine
           ? `<div class="row" style="margin-top:16px;flex-wrap:wrap"><a class="btn sm" href="#edit-${a.id}">✎ ${t('edit')}</a>${soldBtn(a)}${delBtn(a)}</div>`
           : st.isAdmin
-            ? `<div class="row" style="margin-top:16px;flex-wrap:wrap;align-items:center"><span class="faint" style="font-size:12.5px">🛡 ${t('admin')}:</span>${soldBtn(a)}${delBtn(a)}</div>`
+            ? `<div class="row" style="margin-top:16px;flex-wrap:wrap;align-items:center"><span class="faint" style="font-size:12.5px">🛡 ${t('admin')}:</span><a class="btn sm" href="#edit-${a.id}">✎ ${t('edit')}</a>${soldBtn(a)}${delBtn(a)}</div>`
             : ''
       }
       <div class="safe">${t('safety')}</div>
@@ -923,7 +924,7 @@ function vPost(editId) {
     ed = getAd(editId);
     if (ed === undefined)
       return `<div class="wrap">${st.err.has('ad:' + editId) ? errBox() : loadingBox()}</div>`;
-    if (!ed || ed.owner !== st.uid) return vAd(editId);
+    if (!ed || (ed.owner !== st.uid && !st.isAdmin)) return vAd(editId); // owners and admins can edit
   }
   if (!st.draft || st.draft._for !== (editId || 'new')) {
     st.draft = {
@@ -1067,7 +1068,7 @@ function vAdmin() {
           .map(
             (a) => `<div class="mine"><a href="#ad-${a.id}">${photo(a)}</a><div style="flex:1;min-width:0"><a href="#ad-${a.id}"><b>${esc(a.title)}</b></a>
     <div class="faint" style="font-size:12px">👤 ${esc(a.name)} · <span dir="ltr">${esc(latinDigits(a.phone))}</span> · 📍 ${esc(placeName(a))} · ${ago(a.at)} ${a.sold ? `<span class="tag sold">${t('sold')}</span>` : ''}</div>
-    <div class="row" style="margin-top:6px;flex-wrap:wrap;gap:6px">${soldBtn(a)}${delBtn(a)}</div></div></div>`,
+    <div class="row" style="margin-top:6px;flex-wrap:wrap;gap:6px"><a class="btn sm" href="#edit-${a.id}">✎ ${t('edit')}</a>${soldBtn(a)}${delBtn(a)}</div></div></div>`,
           )
           .join('')}</div>`
       : `<div class="empty"><div class="e">📋</div><p>${t('no_results')}</p></div>`
@@ -1447,7 +1448,7 @@ document.addEventListener('submit', async (e) => {
     }
     const editId = cur().startsWith('edit-') ? cur().slice(5) : null;
     const known = editId && st.byId.get(editId);
-    const ex = known && known.owner === st.uid ? known : null;
+    const ex = known && (known.owner === st.uid || st.isAdmin) ? known : null;
     const d = st.draft;
     const btn = f.querySelector('button.p');
     btn.disabled = true;
@@ -1472,8 +1473,10 @@ document.addEventListener('submit', async (e) => {
         thumbData,
         sold: ex ? ex.sold : false,
       };
-      await saveAd(id, ad, d.imgs, !ex);
-      st.me = {
+      await saveAd(id, ad, d.imgs, !ex, ex ? ex.owner : null);
+      // remember the seller details for next time, but not when an admin edits someone else's listing
+      if (!ex || ex.owner === st.uid)
+        st.me = {
         ...st.me,
         name: ad.name,
         phone: ad.phone,
