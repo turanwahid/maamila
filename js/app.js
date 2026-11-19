@@ -347,12 +347,40 @@ const IS_PHONE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navig
 function contactLink() {
   const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t('contact_subject'))}`;
   const style = 'color:var(--blue);font-weight:700';
-  // logged-in visitors: write from the same email address they use on Maamila
-  const from = st.uid && isEmail(st.email) ? st.email : '';
-  if (IS_PHONE)
-    return `<a href="${esc(mailto)}" dir="ltr" style="${style}">${CONTACT_EMAIL}</a>${from ? `<div class="faint" style="font-size:12.5px;margin-top:2px">${t('send_from_hint', `<span dir="ltr">${esc(from)}</span>`)}</div>` : ''}`;
-  return `<a href="${esc(gmailCompose(CONTACT_EMAIL, t('contact_subject'), from))}" target="_blank" rel="noopener" dir="ltr" style="${style}">${CONTACT_EMAIL}</a>
+  // logged-in visitors write from their Maamila account inside the site, so the sender is always that email
+  if (st.uid && isEmail(st.email)) return `<a href="#" data-act="contact" dir="ltr" style="${style}">${CONTACT_EMAIL}</a>`;
+  if (IS_PHONE) return `<a href="${esc(mailto)}" dir="ltr" style="${style}">${CONTACT_EMAIL}</a>`;
+  return `<a href="${esc(gmailCompose(CONTACT_EMAIL, t('contact_subject')))}" target="_blank" rel="noopener" dir="ltr" style="${style}">${CONTACT_EMAIL}</a>
       <span class="faint" style="font-size:12.5px">(Gmail · <a href="${esc(mailto)}" style="color:inherit">${t('other_app')}</a>)</span>`;
+}
+/** "Send message" window for logged-in visitors: From is their account email, the message goes to the admin inbox. */
+function openContact() {
+  const ro = 'dir="ltr" style="text-align:start" disabled';
+  modal(`<h3>✉ ${t('contact_subject')}</h3><form id="contactform" novalidate>
+    <div class="fld"><label>${t('from_label')}</label><input value="${esc(st.email)}" ${ro}></div>
+    <div class="fld"><label>${t('to_label')}</label><input value="${CONTACT_EMAIL}" ${ro}></div>
+    <div class="fld"><label>${t('subject_label')}</label><input name="subject" maxlength="120"></div>
+    <div class="fld"><label>${t('your_msg')} *</label><textarea name="body" maxlength="1800"></textarea></div>
+    <button class="btn p blk">➤ ${t('send')}</button></form>`);
+  setTimeout(() => document.querySelector('#contactform [name=subject]')?.focus(), 50);
+}
+async function sendContact(f) {
+  const subject = f.elements.subject.value.trim().slice(0, 120);
+  const body = f.elements.body.value.trim().slice(0, 1800);
+  f.elements.body.classList.toggle('bad', body.length < 5);
+  if (body.length < 5) return toast(t('msg_fill'), 1);
+  const btn = f.querySelector('button.p');
+  btn.disabled = true;
+  // the database sets the sender to the logged-in account's email itself
+  const { error } = await st.sb.from('messages').insert({
+    name: (st.me.name || '').slice(0, 60),
+    contact: st.email,
+    body: (subject ? subject + '\n\n' : '') + body,
+  });
+  btn.disabled = false;
+  if (error) return toast(/msg_limit/.test(error.message || '') ? t('msg_limit') : t('save_err'), 1);
+  modal('');
+  toast(t('msg_sent'));
 }
 /** Reply buttons for an inbox email: Gmail (and other email apps), or WhatsApp/call for a phone number. */
 function replyBtns(m) {
@@ -1104,6 +1132,11 @@ document.addEventListener('click', (e) => {
       });
     return;
   }
+  if (act === 'contact') {
+    e.preventDefault();
+    if (st.uid) openContact();
+    return;
+  }
   if (act === 'account') {
     e.preventDefault();
     openAccount();
@@ -1314,6 +1347,10 @@ document.addEventListener('submit', async (e) => {
   const f = e.target;
   if (f.id === 'authform') {
     submitAuth(f);
+    return;
+  }
+  if (f.id === 'contactform') {
+    sendContact(f);
     return;
   }
   if (f.classList.contains('replyform')) {

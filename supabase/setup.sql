@@ -184,6 +184,10 @@ begin
   new.sender := auth.uid();
   new.reply := null;
   new.replied_at := null;
+  -- a logged-in visitor's message always carries their account's own email (cannot be faked)
+  if auth.uid() is not null and coalesce(auth.jwt()->>'email', '') <> '' then
+    new.contact := auth.jwt()->>'email';
+  end if;
   select * into n from public.message_counts(new.contact);
   if n.same_contact >= 3 or n.total >= 60 then
     raise exception 'msg_limit: too many messages, try again later' using errcode = 'P0001';
