@@ -13,6 +13,8 @@
     "SUPABASE_URL": "https://dqhevzzuancurvsokpqc.supabase.co",
     "SUPABASE_KEY": "sb_publishable_iJohVESPKMtyA8egiYkJmg_DyZYEaDJ"
   },
+  // Saved Worker logs (Cloudflare dashboard → Workers & Pages → muddy-snow-564c → Logs), e.g. for incoming email.
+  "observability": { "enabled": true },
   // Every day at 06:00 UTC.
   "triggers": { "crons": ["0 6 * * *"] }
 }

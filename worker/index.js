@@ -38,12 +38,14 @@ export default {
   },
 
   async email(message, env) {
+    console.log(`Email received for ${message.to}, ${message.rawSize} bytes.`);
     const raw = await new Response(message.raw).arrayBuffer();
 
     // 1. A copy in Gmail, so nothing is lost even if saving below fails.
     if (env.FORWARD_TO) {
       try {
         await message.forward(env.FORWARD_TO);
+        console.log('Copy forwarded to Gmail.');
       } catch (err) {
         console.error('Forwarding to Gmail failed:', err);
       }
@@ -57,11 +59,16 @@ export default {
       console.error('Could not read the email:', err);
       return;
     }
+    console.log('Email read; saving it to the admin inbox.');
     const from = ((mail.from && mail.from.address) || message.from || '').trim().toLowerCase();
     const name = ((mail.from && mail.from.name) || '').trim();
     const subject = (mail.subject || '').trim();
     let body = [subject, textOf(mail)].filter(Boolean).join('\n\n') || '(empty email)';
     body = body.slice(0, 2000).padEnd(5, ' ');
+    if (!env.SUPABASE_URL || !env.SUPABASE_KEY) {
+      console.error('SUPABASE_URL / SUPABASE_KEY are missing in the Worker settings.');
+      return;
+    }
     const res = await fetch(`${env.SUPABASE_URL}/rest/v1/messages`, {
       method: 'POST',
       headers: { apikey: env.SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
