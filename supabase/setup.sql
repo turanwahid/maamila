@@ -198,3 +198,54 @@ end $$;
 drop trigger if exists messages_guard on public.messages;
 create trigger messages_guard before insert on public.messages
   for each row execute function public.messages_guard();
+
+-- Users section of the admin page. Account data lives in Supabase's private auth schema, so admins read and change
+-- it only through these two functions, which run with the owner's rights (security definer) and check is_admin()
+-- first. "Signed in" = the account has an active login session (signing out removes it).
+create or replace function public.admin_users()
+returns table (id uuid, email text, created_at timestamptz, last_sign_in_at timestamptz, confirmed boolean,
+               banned boolean, is_admin boolean, ads bigint, sessions bigint)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+  return query
+    select u.id, u.email::text, u.created_at, u.last_sign_in_at, u.email_confirmed_at is not null,
+           coalesce(u.banned_until > now(), false),
+           exists (select 1 from public.admins a where a.user_id = u.id),
+           (select count(*) from public.ads x where x.owner = u.id and not x.sample),
+           (select count(*) from auth.sessions s where s.user_id = u.id and (s.not_after is null or s.not_after > now()))
+    from auth.users u
+    where u.email is not null
+    order by u.created_at desc;
+end $$;
+revoke execute on function public.admin_users() from public, anon;
+grant execute on function public.admin_users() to authenticated;
+
+-- actions: signout (end all their sessions), ban / unban (block sign-in), admin / unadmin, delete (the account and
+-- its listings). Admins cannot use them on their own account.
+create or replace function public.admin_user_action(target uuid, action text)
+returns void
+language plpgsql volatile security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+  if target = auth.uid() then
+    raise exception 'not on your own account' using errcode = '42501';
+  end if;
+  case action
+    when 'signout' then delete from auth.sessions where user_id = target;
+    when 'ban' then
+      update auth.users set banned_until = 'infinity' where id = target;
+      delete from auth.sessions where user_id = target;
+    when 'unban' then update auth.users set banned_until = null where id = target;
+    when 'admin' then insert into public.admins (user_id) values (target) on conflict do nothing;
+    when 'unadmin' then delete from public.admins where user_id = target;
+    when 'delete' then delete from auth.users where id = target;
+    else raise exception 'unknown action %', action;
+  end case;
+end $$;
+revoke execute on function public.admin_user_action(uuid, text) from public, anon;
+grant execute on function public.admin_user_action(uuid, text) to authenticated;

@@ -147,6 +147,7 @@ async function checkAdmin() {
   adminFor = uid;
   st.adminAds = null;
   st.adminMsgs = null;
+  st.adminUsers = null;
   st.unread = 0;
   st.isAdmin = uid ? null : false;
   if (!uid || !st.sb) return;
@@ -391,6 +392,42 @@ function replyBtns(m) {
   const d = c.replace(/\D/g, '');
   if (d.length < 9) return '';
   return `<a class="btn sm wa" href="https://wa.me/${waNum(d)}" target="_blank" rel="noopener">💬 ${t('whatsapp')}</a><a class="btn sm" href="tel:${esc(d)}">📞 ${t('call')}</a>`;
+}
+/** Accounts for the admin page (database function admin_users, admins only). */
+function getAdminUsers() {
+  if (st.adminUsers) return st.adminUsers;
+  fetchOnce('admin-users', async () => {
+    const { data, error } = await st.sb.rpc('admin_users');
+    if (error) throw error;
+    st.adminUsers = data;
+  });
+}
+function userRow(u) {
+  const me = u.id === st.uid;
+  const when = (ts) => (ts ? ago(Date.parse(ts)) : t('never'));
+  const chip = (txt, bg, fg) => `<span class="tag" style="background:${bg};color:${fg}">${txt}</span>`;
+  const btn = (act, label, cls = '') => `<button class="btn sm ${cls}" data-act="user" data-a="${act}" data-id="${u.id}">${label}</button>`;
+  return `<div style="padding:12px 14px;border-bottom:1px solid var(--line)">
+    <div class="row" style="gap:6px;flex-wrap:wrap;align-items:center"><b dir="ltr" style="overflow-wrap:anywhere">${esc(u.email)}</b>
+      ${u.sessions > 0 ? chip('● ' + t('online'), '#dcfce7', '#166534') : chip('○ ' + t('offline'), '#f1f5f9', '#475569')}
+      ${u.is_admin ? chip('🛡 ' + t('admin'), '#e0e7ff', '#3730a3') : ''}${u.banned ? chip('⛔ ' + t('blocked'), '#fee2e2', '#991b1b') : ''}
+      ${u.confirmed ? '' : chip('⏳ ' + t('unconfirmed'), '#fef3c7', '#92400e')}${me ? chip(t('you'), '#f1f5f9', '#475569') : ''}</div>
+    <div class="faint" style="font-size:12.5px;margin:4px 0 8px">${t('last_login')}: ${when(u.last_sign_in_at)} · ${t('joined')}: ${when(u.created_at)} · ${t('results', num(u.ads))}</div>
+    ${me ? '' : `<div class="row" style="gap:6px;flex-wrap:wrap">${u.sessions > 0 ? btn('signout', '↩ ' + t('act_signout')) : ''}${u.banned ? btn('unban', '✓ ' + t('act_unban')) : btn('ban', '⛔ ' + t('act_ban'))}${u.is_admin ? btn('unadmin', t('act_unadmin')) : btn('admin', '🛡 ' + t('act_admin'))}${btn('delete', t('del'), 'd')}</div>`}
+  </div>`;
+}
+async function userAction(a, action, id) {
+  a.disabled = true;
+  const { error } = await st.sb.rpc('admin_user_action', { target: id, action });
+  if (error) {
+    a.disabled = false;
+    console.error(error);
+    return toast(t('save_err'), 1);
+  }
+  toast(action === 'delete' ? t('user_deleted') : t('saved_ok_short'));
+  st.adminUsers = null;
+  if (action === 'delete') st.adminAds = null;
+  route(true);
 }
 /** Any copy of an ad kept in memory. */
 const findAd = (id) => st.byId.get(id) || adLists().flat().find((x) => x.id === id);
@@ -1016,7 +1053,14 @@ function vAdmin() {
       : `<div class="empty" style="padding:20px"><p>${t('no_messages')}</p></div>`;
   const ads = getAdminAds();
   if (!ads) return wrap(st.err.has('admin') ? errBox() : loadingBox());
+  const users = getAdminUsers();
+  const usersBox = !users
+    ? st.err.has('admin-users')
+      ? errBox()
+      : loadingBox()
+    : `<div class="card">${users.map(userRow).join('')}</div>`;
   return wrap(`<h2 style="font-size:17px;margin:8px 0 2px">📥 ${t('inbox')}${unreadBadge()}</h2><p class="faint" style="font-size:13px;margin:0 0 10px">${t('inbox_d')}</p>${inbox}
+  <h2 style="font-size:17px;margin:22px 0 2px">👥 ${t('users')}${users ? ` <span class="faint" style="font-size:13px">(${num(users.length)})</span>` : ''}</h2><p class="faint" style="font-size:13px;margin:0 0 10px">${t('users_d')}</p>${usersBox}
   <h2 style="font-size:17px;margin:22px 0 4px">📋 ${t('admin_ads')}</h2><p class="faint" style="font-size:13px;margin:0 0 12px">${t('admin_d')}</p>${
     ads.length
       ? `<div class="card">${ads
@@ -1130,6 +1174,22 @@ document.addEventListener('click', (e) => {
         renderChrome();
         route(true);
       });
+    return;
+  }
+  if (act === 'user') {
+    const action = a.dataset.a;
+    const id = a.dataset.id;
+    if (action !== 'delete') {
+      userAction(a, action, id);
+      return;
+    }
+    modal(
+      `<h3>${t('confirm_del_user')}</h3><div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-act="mclose">${t('cancel')}</button><button class="btn p" id="mok" style="background:var(--red);border-color:var(--red)">${t('del')}</button></div>`,
+    );
+    document.getElementById('mok').onclick = () => {
+      modal('');
+      userAction(a, 'delete', id);
+    };
     return;
   }
   if (act === 'contact') {
