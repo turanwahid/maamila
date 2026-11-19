@@ -21,6 +21,8 @@ const st = {
   uid: null,
   isAdmin: false, // true for site admins (public.admins); null while being checked
   adminAds: null, // newest ads for the admin page
+  adminMsgs: null, // emails to info@maamila.com (admin inbox; saved by worker/index.js)
+  unread: 0, // inbox emails not yet marked as handled
   // home list: one page at a time from the server, for the current filters
   list: [],
   total: 0,
@@ -144,11 +146,17 @@ async function checkAdmin() {
   if (adminFor === uid) return;
   adminFor = uid;
   st.adminAds = null;
+  st.adminMsgs = null;
+  st.unread = 0;
   st.isAdmin = uid ? null : false;
   if (!uid || !st.sb) return;
   const { data, error } = await st.sb.rpc('is_admin');
   if (st.uid !== uid) return;
   st.isAdmin = !error && data === true;
+  if (st.isAdmin) {
+    const r = await st.sb.from('messages').select('id', { count: 'exact', head: true }).eq('handled', false);
+    st.unread = r.count || 0;
+  }
   renderChrome();
   soft();
 }
@@ -280,6 +288,31 @@ function getAdminAds() {
     if (error) throw error;
     st.adminAds = data.map(fromRow);
   });
+}
+function getAdminMsgs() {
+  if (st.adminMsgs) return st.adminMsgs;
+  fetchOnce('admin-msgs', async () => {
+    const { data, error } = await st.sb.from('messages').select('id,created_at,name,contact,body,handled')
+      .order('created_at', { ascending: false }).limit(100);
+    if (error) throw error;
+    st.adminMsgs = data;
+    st.unread = data.filter((m) => !m.handled).length;
+  });
+}
+const CONTACT_EMAIL = 'info@maamila.com';
+/** A link that opens a new email in Gmail (in the browser), addressed to `to`. */
+const gmailCompose = (to, subject = '') =>
+  `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}${subject ? '&su=' + encodeURIComponent(subject) : ''}`;
+/** Reply buttons for an inbox email: Gmail (and other email apps), or WhatsApp/call for a phone number. */
+function replyBtns(m) {
+  const c = latinDigits(m.contact).trim();
+  if (/^[^@\s"<>]+@[^@\s"<>]+\.[^@\s"<>]+$/.test(c)) {
+    const subj = t('reply_subject') + ': ' + (m.body.split('\n')[0] || '').slice(0, 80);
+    return `<a class="btn sm p" href="${esc(gmailCompose(c, subj))}" target="_blank" rel="noopener">✉ ${t('reply')} (Gmail)</a><a class="btn sm" href="mailto:${esc(c)}?subject=${encodeURIComponent(subj)}">${t('other_app')}</a>`;
+  }
+  const d = c.replace(/\D/g, '');
+  if (d.length < 9) return '';
+  return `<a class="btn sm wa" href="https://wa.me/${waNum(d)}" target="_blank" rel="noopener">💬 ${t('whatsapp')}</a><a class="btn sm" href="tel:${esc(d)}">📞 ${t('call')}</a>`;
 }
 /** Any copy of an ad kept in memory. */
 const findAd = (id) => st.byId.get(id) || adLists().flat().find((x) => x.id === id);
@@ -460,7 +493,7 @@ async function submitAuth(f) {
 }
 function openAccount() {
   modal(`<h3>👤 ${t('account')}</h3><p class="muted" dir="ltr" style="text-align:start;margin:0 0 14px">${esc(st.email)}</p>
-    <div class="clist"><button data-act="go" data-h="mine">📋 ${t('my_ads')}</button><button data-act="go" data-h="saved">♡ ${t('saved')}</button><button data-act="go" data-h="post">＋ ${t('post')}</button>${st.isAdmin ? `<button data-act="go" data-h="admin">🛡 ${t('admin')}</button>` : ''}</div>
+    <div class="clist"><button data-act="go" data-h="mine">📋 ${t('my_ads')}</button><button data-act="go" data-h="saved">♡ ${t('saved')}</button><button data-act="go" data-h="post">＋ ${t('post')}</button>${st.isAdmin ? `<button data-act="go" data-h="admin">🛡 ${t('admin')}${unreadBadge()}</button>` : ''}</div>
     <button class="btn d blk" style="margin-top:14px" data-act="logout">↩ ${t('logout')}</button>`);
 }
 function loginPrompt(msg) {
@@ -587,6 +620,10 @@ const saleTag = (a) =>
     : a.sale === 'both'
       ? `<span class="tag w">${t('both')}</span>`
       : '';
+const unreadBadge = () =>
+  st.unread
+    ? ` <span style="background:#f59e0b;color:#fff;border-radius:10px;padding:0 7px;font-size:12px;font-weight:800">${num(st.unread)}</span>`
+    : '';
 const soldBtn = (a) =>
   `<button class="btn sm" data-act="sold" data-id="${a.id}">${a.sold ? '↺ ' + t('relist') : '✓ ' + t('mark_sold')}</button>`;
 const delBtn = (a) => `<button class="btn sm d" data-act="del" data-id="${a.id}">${t('del')}</button>`;
@@ -631,7 +668,7 @@ function renderChrome() {
   document.getElementById('hdr').innerHTML = `<a class="logo" href="#home" data-act="home">${LOGO}${t('brand')}</a>
     <button class="pill cityp" data-act="city">📍 <span class="tx">${esc(cityLabel)}</span> ▾</button>
     <span class="sp"></span>
-    <nav class="dnav"><a class="pill" href="#saved">♡ ${t('saved')}</a><a class="pill" href="#mine">📋 ${t('my_ads')}</a>${st.isAdmin ? `<a class="pill" href="#admin">🛡 ${t('admin')}</a>` : ''}<a class="pill postbtn" href="#post">＋ ${t('post')}</a></nav>
+    <nav class="dnav"><a class="pill" href="#saved">♡ ${t('saved')}</a><a class="pill" href="#mine">📋 ${t('my_ads')}</a>${st.isAdmin ? `<a class="pill" href="#admin">🛡 ${t('admin')}${unreadBadge()}</a>` : ''}<a class="pill postbtn" href="#post">＋ ${t('post')}</a></nav>
     ${st.uid ? `<button class="pill acc" data-act="account" title="${esc(st.email)}">👤 <span class="tx">${t('account')}</span></button>` : `<button class="pill acc" data-act="auth" data-m="login">🔑 <span class="tx">${t('login')}</span></button>`}
     <label class="pill lpill"><span class="gl">🌐</span> <select id="langsel" aria-label="Language">${LANGS.map((l) => `<option value="${l[0]}" ${l[0] === LANG ? 'selected' : ''}>${l[1]}</option>`).join('')}</select></label>`;
   document.getElementById('bnav').innerHTML = [
@@ -648,7 +685,8 @@ function renderChrome() {
   document.getElementById('ftr').innerHTML =
     `<div class="wrap"><div class="row" style="gap:8px;margin-bottom:6px">${LOGO.replace('<svg', '<svg style="width:26px;height:26px"')}<b style="color:var(--blue)">${t('brand')}</b><span class="sp"></span><span dir="ltr">maamila.com</span></div>
     <div>${t('about')}</div>
-    <div style="margin:10px 0 4px">📧 ${t('contact_us')}: <a href="mailto:info@maamila.com" dir="ltr" style="color:var(--blue);font-weight:700">info@maamila.com</a></div><div class="note"><a href="#terms" style="color:var(--blue);font-weight:700">📜 ${t('terms')}</a> · <a href="#post">＋ ${t('post')}</a> · © ${Number(2026).toLocaleString('fa-AF', { useGrouping: false })} ${t('brand')}</div></div>`;
+    <div style="margin:10px 0 4px">📧 ${t('contact_us')}: <a href="${esc(gmailCompose(CONTACT_EMAIL, t('contact_subject')))}" target="_blank" rel="noopener" dir="ltr" style="color:var(--blue);font-weight:700">${CONTACT_EMAIL}</a>
+      <span class="faint" style="font-size:12.5px">(Gmail · <a href="mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t('contact_subject'))}" style="color:inherit">${t('other_app')}</a>)</span></div><div class="note"><a href="#terms" style="color:var(--blue);font-weight:700">📜 ${t('terms')}</a> · <a href="#post">＋ ${t('post')}</a> · © ${Number(2026).toLocaleString('fa-AF', { useGrouping: false })} ${t('brand')}</div></div>`;
 }
 
 /* ===== views ===== */
@@ -876,9 +914,25 @@ function vAdmin() {
   if (!st.uid) return wrap(loginPrompt(t('admin_only')));
   if (st.isAdmin === null) return wrap(loadingBox());
   if (!st.isAdmin) return wrap(`<div class="empty"><div class="e">🔒</div><p>${t('admin_only')}</p></div>`);
+  const msgs = getAdminMsgs();
+  const inbox = !msgs
+    ? st.err.has('admin-msgs')
+      ? errBox()
+      : loadingBox()
+    : msgs.length
+      ? `<div class="card">${msgs
+          .map(
+            (m) => `<div style="padding:12px 14px;border-bottom:1px solid var(--line);${m.handled ? 'opacity:.6' : ''}">
+    <div class="row" style="gap:8px;flex-wrap:wrap;font-size:13px"><b>${esc(m.name || '—')}</b><span dir="ltr" class="faint">${esc(m.contact)}</span><span class="faint">· ${ago(Date.parse(m.created_at))}</span>${m.handled ? '' : `<span class="tag w">${t('new_label')}</span>`}</div>
+    <p style="white-space:pre-line;margin:6px 0 8px;overflow-wrap:anywhere">${esc(m.body)}</p>
+    <div class="row" style="gap:6px;flex-wrap:wrap">${replyBtns(m)}${m.handled ? '' : `<button class="btn sm" data-act="msgdone" data-id="${m.id}">✓ ${t('mark_done')}</button>`}<button class="btn sm d" data-act="msgdel" data-id="${m.id}">${t('del')}</button></div></div>`,
+          )
+          .join('')}</div>`
+      : `<div class="empty" style="padding:20px"><p>${t('no_messages')}</p></div>`;
   const ads = getAdminAds();
   if (!ads) return wrap(st.err.has('admin') ? errBox() : loadingBox());
-  return wrap(`<p class="faint" style="font-size:13px;margin:0 0 12px">${t('admin_d')}</p>${
+  return wrap(`<h2 style="font-size:17px;margin:8px 0 2px">📥 ${t('inbox')}${unreadBadge()}</h2><p class="faint" style="font-size:13px;margin:0 0 10px">${t('inbox_d')}</p>${inbox}
+  <h2 style="font-size:17px;margin:22px 0 4px">📋 ${t('admin_ads')}</h2><p class="faint" style="font-size:13px;margin:0 0 12px">${t('admin_d')}</p>${
     ads.length
       ? `<div class="card">${ads
           .map(
@@ -970,6 +1024,27 @@ document.addEventListener('click', (e) => {
     if (cur() !== 'home') location.hash = '#home';
     else route(true);
     window.scrollTo(0, 0);
+    return;
+  }
+  if (act === 'msgdone' || act === 'msgdel') {
+    const id = a.dataset.id;
+    a.disabled = true;
+    const q = st.sb.from('messages');
+    (act === 'msgdone' ? q.update({ handled: true }).eq('id', id) : q.delete().eq('id', id))
+      .select('id')
+      .then(({ data, error }) => {
+        if (error || !data.length) {
+          a.disabled = false;
+          return toast(t('save_err'), 1);
+        }
+        if (st.adminMsgs) {
+          if (act === 'msgdel') st.adminMsgs = st.adminMsgs.filter((m) => m.id !== id);
+          else (st.adminMsgs.find((m) => m.id === id) || {}).handled = true;
+          st.unread = st.adminMsgs.filter((m) => !m.handled).length;
+        }
+        renderChrome();
+        route(true);
+      });
     return;
   }
   if (act === 'account') {

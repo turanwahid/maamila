@@ -10,3 +10,5 @@ tools
 backups
 .wrangler
 .claude
+package.json
+package-lock.json

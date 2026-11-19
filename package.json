@@ -1,0 +1,8 @@
+{
+  "name": "maamila",
+  "private": true,
+  "description": "Maamila site worker dependencies (the site itself needs no build step)",
+  "dependencies": {
+    "postal-mime": "4.2.0"
+  }
+}

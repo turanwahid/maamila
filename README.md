@@ -22,7 +22,8 @@ supabase/setup.sql  database tables, photo storage and security rules
 _headers            security headers for the site (read by Cloudflare, not published)
 manifest.webmanifest, icons/, sw.js  make the site installable as an app ("Install" / "Add to Home screen")
 social/             profile picture, cover banner and link-preview image for social media
-worker/index.js     Cloudflare Worker: serves the files + daily keep-awake check
+worker/index.js     Cloudflare Worker: serves the files, daily keep-awake check, receives email to info@maamila.com
+package.json        the Worker's one dependency (postal-mime, reads emails); not published
 tools/backup.mjs    backup command (see Backups)
 ```
 Scripts load in that order as plain `<script>` tags. To preview locally, open `index.html` in a browser or run any static server (e.g. `npx serve .`).
@@ -74,6 +75,12 @@ insert into public.admins (user_id) select id from auth.users where email = 'som
 ```
 Remove one with `delete from public.admins where user_id = (select id from auth.users where email = '…');`.
 You can also remove an ad in Supabase → Table Editor → `ads` → delete the row.
+
+**Inbox:** email to info@maamila.com goes to the Worker (Cloudflare Email Routing rule "Send to a Worker"), which saves
+it in the `messages` table — shown in the admin page's 📥 inbox, with a new-count badge and a "Reply (Gmail)"
+button — and forwards a copy to the owner's Gmail. That address is the private Worker secret `FORWARD_TO`
+(`npx wrangler secret put FORWARD_TO --name muddy-snow-564c`), never written in this public repository.
+The footer's info@maamila.com link opens a new Gmail message in the browser (with a link for other email apps).
 
 **Sample listings:** while the site is new it shows example listings marked «نمونه» (column `ads.sample`), with no
 phone or WhatsApp buttons. Only the SQL editor can create them. Delete them on the admin page, or all at once:
