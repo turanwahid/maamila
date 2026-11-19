@@ -147,6 +147,9 @@ create table if not exists public.messages (
   handled boolean not null default false
 );
 create index if not exists messages_created_idx on public.messages (created_at desc);
+-- the admin's reply, sent from info@maamila.com by the Worker (worker/index.js, POST /api/reply)
+alter table public.messages add column if not exists reply text check (char_length(reply) <= 5000);
+alter table public.messages add column if not exists replied_at timestamptz;
 alter table public.messages enable row level security;
 drop policy if exists "anyone can send a message" on public.messages;
 drop policy if exists "admins read messages" on public.messages;
@@ -179,6 +182,8 @@ begin
   new.created_at := now();
   new.handled := false;
   new.sender := auth.uid();
+  new.reply := null;
+  new.replied_at := null;
   select * into n from public.message_counts(new.contact);
   if n.same_contact >= 3 or n.total >= 60 then
     raise exception 'msg_limit: too many messages, try again later' using errcode = 'P0001';

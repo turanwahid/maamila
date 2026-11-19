@@ -80,6 +80,8 @@ You can also remove an ad in Supabase → Table Editor → `ads` → delete the 
 it in the `messages` table — shown in the admin page's 📥 inbox, with a new-count badge and a "Reply (Gmail)"
 button — and forwards a copy to the owner's Gmail. That address is the private Worker secret `FORWARD_TO`
 (`npx wrangler secret put FORWARD_TO --name muddy-snow-564c`), never written in this public repository.
+Replies are written in the inbox and sent from info@maamila.com by the Worker (POST /api/reply) through Brevo's API;
+that needs the Brevo API key as the private Worker secret `BREVO_KEY` (`npx wrangler secret put BREVO_KEY --name muddy-snow-564c`).
 The footer's info@maamila.com link opens a new Gmail message in the browser (with a link for other email apps).
 
 **Sample listings:** while the site is new it shows example listings marked «نمونه» (column `ads.sample`), with no

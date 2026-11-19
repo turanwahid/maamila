@@ -292,7 +292,7 @@ function getAdminAds() {
 function getAdminMsgs() {
   if (st.adminMsgs) return st.adminMsgs;
   fetchOnce('admin-msgs', async () => {
-    const { data, error } = await st.sb.from('messages').select('id,created_at,name,contact,body,handled')
+    const { data, error } = await st.sb.from('messages').select('id,created_at,name,contact,body,handled,reply,replied_at')
       .order('created_at', { ascending: false }).limit(100);
     if (error) throw error;
     st.adminMsgs = data;
@@ -303,12 +303,47 @@ const CONTACT_EMAIL = 'info@maamila.com';
 /** A link that opens a new email in Gmail (in the browser), addressed to `to`. */
 const gmailCompose = (to, subject = '') =>
   `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}${subject ? '&su=' + encodeURIComponent(subject) : ''}`;
+const isEmail = (c) => /^[^@\s"<>]+@[^@\s"<>]+\.[^@\s"<>]+$/.test(latinDigits(c || '').trim());
+/** Sends a reply from the admin inbox: the Worker (POST /api/reply) emails it from info@maamila.com. */
+async function sendSiteReply(f) {
+  const id = f.dataset.id;
+  const text = f.elements.reply.value.trim();
+  if (text.length < 2) return toast(t('reply_empty'), 1);
+  const { data } = await st.sb.auth.getSession();
+  const token = data && data.session && data.session.access_token;
+  if (!token) return openAuth('login');
+  const btn = f.querySelector('button');
+  btn.disabled = true;
+  let res, out;
+  try {
+    res = await fetch('/api/reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ id, text }),
+    });
+    out = await res.json().catch(() => ({}));
+  } catch (e) {
+    out = { error: String(e) };
+  }
+  if (!res || !res.ok) {
+    btn.disabled = false;
+    console.error('Reply failed:', out);
+    return toast(t('reply_failed'), 1);
+  }
+  const m = (st.adminMsgs || []).find((x) => x.id === id);
+  if (m) Object.assign(m, { reply: text, replied_at: new Date().toISOString(), handled: true });
+  st.unread = (st.adminMsgs || []).filter((x) => !x.handled).length;
+  f.elements.reply.value = '';
+  toast(t('reply_sent'));
+  renderChrome();
+  route(true);
+}
 /** Reply buttons for an inbox email: Gmail (and other email apps), or WhatsApp/call for a phone number. */
 function replyBtns(m) {
   const c = latinDigits(m.contact).trim();
   if (/^[^@\s"<>]+@[^@\s"<>]+\.[^@\s"<>]+$/.test(c)) {
     const subj = t('reply_subject') + ': ' + (m.body.split('\n')[0] || '').slice(0, 80);
-    return `<a class="btn sm p" href="${esc(gmailCompose(c, subj))}" target="_blank" rel="noopener">✉ ${t('reply')} (Gmail)</a><a class="btn sm" href="mailto:${esc(c)}?subject=${encodeURIComponent(subj)}">${t('other_app')}</a>`;
+    return `<a class="btn sm" href="${esc(gmailCompose(c, subj))}" target="_blank" rel="noopener">✉ ${t('reply_gmail')}</a>`;
   }
   const d = c.replace(/\D/g, '');
   if (d.length < 9) return '';
@@ -597,6 +632,7 @@ function soft() {
   clearTimeout(sT);
   sT = setTimeout(() => {
     if (document.getElementById('postform')) return;
+    if ([...document.querySelectorAll('.replyform textarea')].some((x) => x.value.trim())) return; // reply being typed
     route(true);
   }, 100);
 }
@@ -925,6 +961,8 @@ function vAdmin() {
             (m) => `<div style="padding:12px 14px;border-bottom:1px solid var(--line);${m.handled ? 'opacity:.6' : ''}">
     <div class="row" style="gap:8px;flex-wrap:wrap;font-size:13px"><b>${esc(m.name || '—')}</b><span dir="ltr" class="faint">${esc(m.contact)}</span><span class="faint">· ${ago(Date.parse(m.created_at))}</span>${m.handled ? '' : `<span class="tag w">${t('new_label')}</span>`}</div>
     <p style="white-space:pre-line;margin:6px 0 8px;overflow-wrap:anywhere">${esc(m.body)}</p>
+    ${m.reply ? `<div style="background:#eef4ff;border-radius:10px;padding:8px 12px;margin:0 0 8px;font-size:13.5px"><b>✓ ${t('replied')}</b> <span class="faint">· ${ago(Date.parse(m.replied_at))}</span><div style="white-space:pre-line;margin-top:4px;overflow-wrap:anywhere">${esc(m.reply)}</div></div>` : ''}
+    ${isEmail(m.contact) ? `<form class="replyform" data-id="${m.id}" novalidate style="margin:0 0 8px"><textarea name="reply" maxlength="5000" placeholder="${t('reply_ph')}" style="width:100%;min-height:70px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;resize:vertical"></textarea><button class="btn sm p" style="margin-top:6px">➤ ${t('reply_send')}</button></form>` : ''}
     <div class="row" style="gap:6px;flex-wrap:wrap">${replyBtns(m)}${m.handled ? '' : `<button class="btn sm" data-act="msgdone" data-id="${m.id}">✓ ${t('mark_done')}</button>`}<button class="btn sm d" data-act="msgdel" data-id="${m.id}">${t('del')}</button></div></div>`,
           )
           .join('')}</div>`
@@ -1256,6 +1294,10 @@ document.addEventListener('submit', async (e) => {
   const f = e.target;
   if (f.id === 'authform') {
     submitAuth(f);
+    return;
+  }
+  if (f.classList.contains('replyform')) {
+    sendSiteReply(f);
     return;
   }
   if (f.id === 'sform') {
