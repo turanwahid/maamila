@@ -23,6 +23,23 @@ function textOf(mail) {
     .trim();
 }
 
+/** Reads the email and saves sender, name, subject and text in the messages table (the admin inbox). */
+async function saveToInbox(message, env) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('SUPABASE_URL / SUPABASE_KEY are missing in the Worker settings.');
+  const mail = await PostalMime.parse(await new Response(message.raw).arrayBuffer());
+  const from = ((mail.from && mail.from.address) || message.from || '').trim().toLowerCase();
+  const name = ((mail.from && mail.from.name) || '').trim();
+  const subject = (mail.subject || '').trim();
+  const body = ([subject, textOf(mail)].filter(Boolean).join('\n\n') || '(empty email)').slice(0, 2000).padEnd(5, ' ');
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/messages`, {
+    method: 'POST',
+    headers: { apikey: env.SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify({ name: name.slice(0, 60), contact: from.slice(0, 100), body }),
+  });
+  if (!res.ok) throw new Error(`Supabase answered ${res.status}: ${await res.text()}`);
+  console.log(`Email from ${from} saved to the admin inbox.`);
+}
+
 export default {
   fetch(request, env) {
     return env.ASSETS.fetch(request);
@@ -39,9 +56,13 @@ export default {
 
   async email(message, env) {
     console.log(`Email received for ${message.to}, ${message.rawSize} bytes.`);
-    const raw = await new Response(message.raw).arrayBuffer();
-
-    // 1. A copy in Gmail, so nothing is lost even if saving below fails.
+    // Save first, forward last: forward() sends the original message, so the save never waits on it.
+    try {
+      await saveToInbox(message, env);
+    } catch (err) {
+      console.error('Saving the email to the admin inbox failed:', err);
+    }
+    // A copy in Gmail, so nothing is lost even if saving failed.
     if (env.FORWARD_TO) {
       try {
         await message.forward(env.FORWARD_TO);
@@ -50,31 +71,5 @@ export default {
         console.error('Forwarding to Gmail failed:', err);
       }
     }
-
-    // 2. Save it for the admin inbox on the site.
-    let mail;
-    try {
-      mail = await PostalMime.parse(raw);
-    } catch (err) {
-      console.error('Could not read the email:', err);
-      return;
-    }
-    console.log('Email read; saving it to the admin inbox.');
-    const from = ((mail.from && mail.from.address) || message.from || '').trim().toLowerCase();
-    const name = ((mail.from && mail.from.name) || '').trim();
-    const subject = (mail.subject || '').trim();
-    let body = [subject, textOf(mail)].filter(Boolean).join('\n\n') || '(empty email)';
-    body = body.slice(0, 2000).padEnd(5, ' ');
-    if (!env.SUPABASE_URL || !env.SUPABASE_KEY) {
-      console.error('SUPABASE_URL / SUPABASE_KEY are missing in the Worker settings.');
-      return;
-    }
-    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/messages`, {
-      method: 'POST',
-      headers: { apikey: env.SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ name: name.slice(0, 60), contact: from.slice(0, 100), body }),
-    });
-    if (!res.ok) console.error(`Saving the email failed: ${res.status} ${await res.text()}`);
-    else console.log(`Email from ${from} saved to the admin inbox.`);
   },
 };
