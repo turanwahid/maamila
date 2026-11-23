@@ -1,7 +1,8 @@
 // Service worker: lets browsers install Maamila as an app, and shows the last loaded version when offline.
-// Always asks the network first, so visitors get updates right away; the copy is only a fallback.
+// Answers from the copy on the phone at once (fast even on weak connections) and refreshes that copy in the
+// background, so an update shows from the next visit on.
 // Ads, photos and accounts (Supabase, another address) are not touched.
-const CACHE = 'maamila-v2';
+const CACHE = 'maamila-v3';
 const SHELL = [
   '/',
   '/css/style.css',
@@ -32,16 +33,20 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
-  if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+  const key = req.mode === 'navigate' ? '/' : req;
   event.respondWith(
-    fetch(req)
-      .then((res) => {
-        if (res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req.mode === 'navigate' ? '/' : req, copy));
-        }
+    caches.open(CACHE).then(async (cache) => {
+      const cached = await cache.match(key, { ignoreSearch: true });
+      const fresh = fetch(req).then((res) => {
+        if (res.ok) cache.put(key, res.clone());
         return res;
-      })
-      .catch(() => caches.match(req.mode === 'navigate' ? '/' : req, { ignoreSearch: true })),
+      });
+      if (cached) {
+        event.waitUntil(fresh.catch(() => {})); // refresh in the background
+        return cached;
+      }
+      return fresh;
+    }),
   );
 });

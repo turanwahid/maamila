@@ -115,6 +115,7 @@ async function initDb() {
   st.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: { persistSession: true, autoRefreshToken: true },
   });
+  if (cur() === 'home') ensureList(); // the listings are public: start loading them right away
   // Listen before reading the session, so the "password recovery" event from a reset link is not missed.
   st.sb.auth.onAuthStateChange((ev, session) => {
     const before = st.uid;
@@ -217,8 +218,21 @@ async function loadList(keep) {
     st.listKey = key;
     st.listErr = '';
     st.listStale = false;
+    LS.set('home', { key, total: st.total, rows: data.slice(0, PAGE) }); // shown instantly on the next visit
   }
   if (cur() === 'home') soft();
+}
+/** The listings seen last time on this phone, shown at once while fresh ones load (slow connections). */
+function restoreHome() {
+  const c = LS.get('home', null);
+  if (!c || c.key !== filterKey() || !Array.isArray(c.rows)) return;
+  try {
+    st.list = c.rows.map(fromRow);
+    st.total = c.total || st.list.length;
+    st.more = st.list.length < st.total;
+    st.listKey = c.key;
+    st.listStale = true; // refreshed as soon as the database answers
+  } catch (e) {}
 }
 function ensureList() {
   const key = filterKey();
@@ -1500,6 +1514,7 @@ document.addEventListener('submit', async (e) => {
   }
 });
 
+restoreHome();
 route();
 initDb();
 // Lets the site be installed as an app (see sw.js).

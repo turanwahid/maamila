@@ -9,3 +9,15 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains
 /sw.js
   Cache-Control: no-cache
+# Site files: kept for 5 minutes, then used while a fresh copy is fetched in the background (fewer round trips on
+# slow connections; an update reaches everyone within about 5 minutes).
+/js/*
+  Cache-Control: public, max-age=300, stale-while-revalidate=604800
+/css/*
+  Cache-Control: public, max-age=300, stale-while-revalidate=604800
+/lang/*
+  Cache-Control: public, max-age=300, stale-while-revalidate=604800
+/icons/*
+  Cache-Control: public, max-age=86400
+/social/*
+  Cache-Control: public, max-age=86400
