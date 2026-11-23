@@ -607,10 +607,17 @@ header {
 /* ad page */
 .adp {
   display: grid;
-  grid-template-columns: 1.25fr 1fr;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); /* minmax(0, …): long text can never widen the page */
   gap: 16px;
   align-items: start;
   margin-top: 14px;
+}
+.adp > * {
+  min-width: 0;
+}
+.adp .info p,
+.adp .info dd {
+  overflow-wrap: anywhere; /* long links or words wrap instead of stretching the page */
 }
 .gal .main {
   aspect-ratio: 4/3;
@@ -938,7 +945,10 @@ footer {
     display: none;
   }
   .adp {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .gal .main {
+    max-height: 62vh; /* tall screens: the photo never fills the whole screen */
   }
   .grid {
     grid-template-columns: repeat(2, 1fr);
