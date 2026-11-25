@@ -206,9 +206,10 @@ create trigger messages_guard before insert on public.messages
 -- Users section of the admin page. Account data lives in Supabase's private auth schema, so admins read and change
 -- it only through these two functions, which run with the owner's rights (security definer) and check is_admin()
 -- first. "Signed in" = the account has an active login session (signing out removes it).
+drop function if exists public.admin_users(); -- the list gained a "provider" column (email / google / facebook)
 create or replace function public.admin_users()
 returns table (id uuid, email text, created_at timestamptz, last_sign_in_at timestamptz, confirmed boolean,
-               banned boolean, is_admin boolean, ads bigint, sessions bigint)
+               banned boolean, is_admin boolean, ads bigint, sessions bigint, provider text)
 language plpgsql stable security definer set search_path = '' as $$
 begin
   if not public.is_admin() then
@@ -219,9 +220,10 @@ begin
            coalesce(u.banned_until > now(), false),
            exists (select 1 from public.admins a where a.user_id = u.id),
            (select count(*) from public.ads x where x.owner = u.id and not x.sample),
-           (select count(*) from auth.sessions s where s.user_id = u.id and (s.not_after is null or s.not_after > now()))
+           (select count(*) from auth.sessions s where s.user_id = u.id and (s.not_after is null or s.not_after > now())),
+           coalesce(u.raw_app_meta_data->>'provider', 'email')
     from auth.users u
-    where u.email is not null
+    where u.email is not null or not coalesce(u.is_anonymous, false) -- Facebook accounts may have no email
     order by u.created_at desc;
 end $$;
 revoke execute on function public.admin_users() from public, anon;

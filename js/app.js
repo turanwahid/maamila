@@ -18,6 +18,7 @@ const LS = {
 const st = {
   sb: null,
   dbErr: false,
+  oauth: LS.get('oauth', []), // sign-in providers switched on in Supabase
   uid: null,
   isAdmin: false, // true for site admins (public.admins); null while being checked
   adminAds: null, // newest ads for the admin page
@@ -116,6 +117,7 @@ async function initDb() {
     auth: { persistSession: true, autoRefreshToken: true },
   });
   if (cur() === 'home') ensureList(); // the listings are public: start loading them right away
+  loadOauth();
   // Listen before reading the session, so the "password recovery" event from a reset link is not missed.
   st.sb.auth.onAuthStateChange((ev, session) => {
     const before = st.uid;
@@ -423,7 +425,8 @@ function userRow(u) {
   const chip = (txt, bg, fg) => `<span class="tag" style="background:${bg};color:${fg}">${txt}</span>`;
   const btn = (act, label, cls = '') => `<button class="btn sm ${cls}" data-act="user" data-a="${act}" data-id="${u.id}">${label}</button>`;
   return `<div style="padding:12px 14px;border-bottom:1px solid var(--line)">
-    <div class="row" style="gap:6px;flex-wrap:wrap;align-items:center"><b dir="ltr" style="overflow-wrap:anywhere">${esc(u.email)}</b>
+    <div class="row" style="gap:6px;flex-wrap:wrap;align-items:center"><b dir="ltr" style="overflow-wrap:anywhere">${esc(u.email || t('no_email_user'))}</b>
+      ${u.provider === 'google' ? chip('G Google', '#fff7ed', '#9a3412') : u.provider === 'facebook' ? chip('f Facebook', '#dbeafe', '#1e40af') : ''}
       ${u.sessions > 0 ? chip('● ' + t('online'), '#dcfce7', '#166534') : chip('○ ' + t('offline'), '#f1f5f9', '#475569')}
       ${u.is_admin ? chip('🛡 ' + t('admin'), '#e0e7ff', '#3730a3') : ''}${u.banned ? chip('⛔ ' + t('blocked'), '#fee2e2', '#991b1b') : ''}
       ${u.confirmed ? '' : chip('⏳ ' + t('unconfirmed'), '#fef3c7', '#92400e')}${me ? chip(t('you'), '#f1f5f9', '#475569') : ''}</div>
@@ -485,7 +488,30 @@ function removeAd(id) {
   st.total = Math.max(0, st.total - 1);
 }
 
-/* ===== accounts (email + password) ===== */
+/* ===== accounts (email + password, Google, Facebook) ===== */
+const OAUTH_ICONS = {
+  google: '<svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>',
+  facebook: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#fff" d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/></svg>',
+};
+/** Which of Google / Facebook are switched on in Supabase (public settings); remembered for the next visit. */
+function loadOauth() {
+  fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_KEY } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((s) => {
+      if (!s || !s.external) return;
+      st.oauth = ['google', 'facebook'].filter((p) => s.external[p]);
+      LS.set('oauth', st.oauth);
+    })
+    .catch(() => {});
+}
+async function oauthLogin(provider, btn) {
+  btn.disabled = true;
+  const { error } = await st.sb.auth.signInWithOAuth({ provider, options: { redirectTo: location.origin } });
+  if (error) {
+    btn.disabled = false;
+    toast(t('oauth_err'), 1);
+  } // otherwise the browser is on its way to Google / Facebook and comes back logged in
+}
 function setUser(u) {
   const real = u && !u.is_anonymous;
   st.uid = real ? u.id : null;
@@ -500,14 +526,19 @@ async function ensureUser() {
 function openAuth(mode, email = '') {
   const f = (name, type, ph, extra = '') =>
     `<div class="fld"><label>${t(name)}</label><input name="${name}" type="${type}" dir="ltr" autocomplete="${extra}" style="text-align:start" placeholder="${ph}"></div>`;
+  const pw = (ac) =>
+    `<div class="fld"><label>${t('password')}</label><div class="pwwrap"><input name="password" type="password" dir="ltr" autocomplete="${ac}" style="text-align:start" placeholder="••••••"><button type="button" class="pweye" data-act="pwtoggle" aria-label="${t('show_pw')}">👁</button></div></div>`;
+  // Google / Facebook buttons: only providers switched on in Supabase are shown (see loadOauth)
+  const social = st.oauth.length
+    ? `<div class="social">${st.oauth.map((p) => `<button type="button" class="btn blk sbtn ${p}" data-act="oauth" data-p="${p}">${OAUTH_ICONS[p]}<span>${t('with_' + p)}</span></button>`).join('')}</div><div class="ordiv"><span>${t('or_email')}</span></div>`
+    : '';
   const body = {
-    login: `${f('email', 'email', 'name@example.com', 'email')}${f('password', 'password', '••••••', 'current-password')}
+    login: `${social}${f('email', 'email', 'name@example.com', 'email')}${pw('current-password')}
       <button class="btn p blk">${t('login')}</button>
-      <div class="authlinks"><a href="#" data-act="auth" data-m="forgot">${t('forgot')}</a><span>${t('no_account')} <a href="#" data-act="auth" data-m="signup">${t('signup')}</a></span></div>`,
-    signup: `${f('email', 'email', 'name@example.com', 'email')}${f('password', 'password', '••••••', 'new-password')}
+      <div class="authlinks" style="justify-content:center"><a href="#" data-act="auth" data-m="forgot">${t('forgot')}</a></div>`,
+    signup: `${social}${f('email', 'email', 'name@example.com', 'email')}${pw('new-password')}
       <button class="btn p blk">${t('signup')}</button>
-      <p class="faint" style="font-size:12.5px;text-align:center;margin:10px 0 0">${t('agree', `<a href="#terms" data-act="mclose" style="color:var(--blue)">${t('terms')}</a>`)}</p>
-      <div class="authlinks"><span>${t('have_account')} <a href="#" data-act="auth" data-m="login">${t('login')}</a></span></div>`,
+      <p class="faint" style="font-size:12.5px;text-align:center;margin:10px 0 0">${t('agree', `<a href="#terms" data-act="mclose" style="color:var(--blue)">${t('terms')}</a>`)}</p>`,
     forgot: `${f('email', 'email', 'name@example.com', 'email')}<button class="btn p blk">${t('send_code')}</button>
       <div class="authlinks"><a href="#" data-act="auth" data-m="login">${t('login')}</a></div>`,
     // password reset with the code from the email (links in emails pass through Brevo's click tracking,
@@ -532,7 +563,12 @@ function openAuth(mode, email = '') {
     verify: t('verify_t'),
     newpw: t('new_password'),
   }[mode];
-  modal(`<h3>🔑 ${title}</h3><form id="authform" data-mode="${mode}" data-email="${esc(email)}" novalidate>${body}</form>`);
+  const head =
+    mode === 'login' || mode === 'signup'
+      ? `<div class="authhead">${LOGO.replace('<svg', '<svg style="width:44px;height:44px"')}<h3>${t('welcome_t')}</h3><p class="faint">${t('welcome_d')}</p></div>
+    <div class="authtabs"><button type="button" class="${mode === 'login' ? 'on' : ''}" data-act="auth" data-m="login">${t('login')}</button><button type="button" class="${mode === 'signup' ? 'on' : ''}" data-act="auth" data-m="signup">${t('signup')}</button></div>`
+      : `<h3>🔑 ${title}</h3>`;
+  modal(`${head}<form id="authform" data-mode="${mode}" data-email="${esc(email)}" novalidate>${body}</form>`);
   setTimeout(() => document.querySelector('#authform input')?.focus(), 50);
 }
 async function submitAuth(f) {
@@ -622,7 +658,7 @@ async function submitAuth(f) {
   }
 }
 function openAccount() {
-  modal(`<h3>👤 ${t('account')}</h3><p class="muted" dir="ltr" style="text-align:start;margin:0 0 14px">${esc(st.email)}</p>
+  modal(`<div class="authhead"><div class="av" style="--h:${hashH(st.email || 'x')};width:52px;height:52px;font-size:22px;margin:0 auto 6px">${esc((st.email || '?')[0].toUpperCase())}</div><h3>${t('account')}</h3><p class="faint" dir="ltr">${esc(st.email)}</p></div>
     <div class="clist"><button data-act="go" data-h="mine">📋 ${t('my_ads')}</button><button data-act="go" data-h="saved">♡ ${t('saved')}</button><button data-act="go" data-h="post">＋ ${t('post')}</button>${st.isAdmin ? `<button data-act="go" data-h="admin">🛡 ${t('admin')}${unreadBadge()}</button>` : ''}</div>
     <button class="btn d blk" style="margin-top:14px" data-act="logout">↩ ${t('logout')}</button>`);
 }
@@ -1207,6 +1243,16 @@ document.addEventListener('click', (e) => {
       modal('');
       userAction(a, 'delete', id);
     };
+    return;
+  }
+  if (act === 'oauth') {
+    oauthLogin(a.dataset.p, a);
+    return;
+  }
+  if (act === 'pwtoggle') {
+    const i = a.parentElement.querySelector('input');
+    i.type = i.type === 'password' ? 'text' : 'password';
+    a.textContent = i.type === 'password' ? '👁' : '🙈';
     return;
   }
   if (act === 'contact') {
