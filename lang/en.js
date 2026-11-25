@@ -220,7 +220,7 @@ TERMS.en = {
     ],
     [
       'Privacy',
-      'The name and phone number you write in a listing are shown to everyone, so buyers can contact you. We do not sell your information to others. You can delete your listing whenever you want.',
+      'The name and phone number you write in a listing are shown to everyone, so buyers can contact you. We do not sell your information to others. You can delete your listing whenever you want. To delete your account and all your data, email info@maamila.com from your account email; it is deleted within 7 days. If you log in with Google or Facebook, we only receive your email address and name.',
     ],
     [
       'Changes to these terms',
