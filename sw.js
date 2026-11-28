@@ -2,7 +2,7 @@
 // Answers from the copy on the phone at once (fast even on weak connections) and refreshes that copy in the
 // background, so an update shows from the next visit on.
 // Ads, photos and accounts (Supabase, another address) are not touched.
-const CACHE = 'maamila-v3';
+const CACHE = 'maamila-v4';
 const SHELL = [
   '/',
   '/css/style.css',
@@ -18,7 +18,13 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' skips the browser's own copy, so a new version really gets the new files
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener('activate', (event) => {

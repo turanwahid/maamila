@@ -818,7 +818,7 @@ function modal(h) {
     ? `<div class="mbg" data-act="mclose"><div class="mdl">${h}</div></div>`
     : '';
 }
-const LOGO = `<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="12" fill="#1a56db"/><path d="M8 15.5 11 9h18l3 6.5z" fill="#fff"/><path d="M8 15.5h24v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z" fill="#f59e0b"/><path d="M10 20.5h20V31H10z" fill="#fff"/><path d="M17.5 31v-6h5v6z" fill="#1a56db"/></svg>`;
+const LOGO = `<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="12" fill="#2547b4"/><path d="M8 15.5 11 9h18l3 6.5z" fill="#fff"/><path d="M8 15.5h24v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z" fill="#f59e0b"/><path d="M10 20.5h20V31H10z" fill="#fff"/><path d="M17.5 31v-6h5v6z" fill="#2547b4"/></svg>`;
 function waNum(p) {
   let d = latinDigits(p).replace(/\D/g, '');
   if (d.startsWith('0')) d = '93' + d.slice(1);
